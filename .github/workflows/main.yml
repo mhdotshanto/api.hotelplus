@@ -1,0 +1,23 @@
+on: 
+  push:
+    branches: [ main ]
+name: Deploy api on push
+jobs:
+  web-deploy:
+    name: Deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get latest code
+      uses: actions/checkout@v3
+    - name: Install Composer Dependencies
+      run: composer install --prefer-dist --no-progress --no-suggest
+    - name: Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER}}
+        username: ${{ secrets.FTP_USERNAME}}
+        password: ${{ secrets.FTP_PASSWORD}}
+        protocol: ${{ secrets.FTP_PROTOCOL}}
+        server-dir: ${{ secrets.FTP_DIRECTORY}}
+  
