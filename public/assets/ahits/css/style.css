@@ -1,0 +1,188 @@
+.netprice-block{
+	background: #D9E0E7;
+	font-weight: bold;
+	font-size: 16px;
+}
+.action, .price, .quantity{
+	width: 13%;
+}
+.modal-header{
+	background: #242A30;
+	border-radius: 0 0 !important;
+	background-image: linear-gradient(#374049, #242a30, #374049);
+	padding: 10px 15px !important;
+	color: #ffffff !important;
+}
+.organization-logo{
+    padding: 3px 0px!important;
+}
+.organization-logo img{
+    height: 44px;
+}
+
+.button.close{
+	padding: 9px !important;
+
+}
+button.close{
+    color: #fff;
+}
+.modal-title{
+	color: #ffffff !important;
+}
+button.close:hover{
+	color: red !important;
+}
+
+/*RESERVATIONS STATUS STYLES*/
+.bg-available, .btn-available{
+    background-color: #ffffff;
+    color: #006400;
+}
+.btn-postponed{
+    background-color: #dc3545;
+    color: #fff;
+}
+.bg-hold, .btn-hold{
+    background-color: #FF8C00;
+    color: #006400;
+}
+.bg-tentative, .btn-tentative{
+    background-color: #DEB887;
+    color: #006400;
+}
+.bg-guaranteed, .btn-guaranteed{
+    background-color: #006400;
+    color: #ffffff;
+}
+.bg-checkedin, .btn-checkedin{
+    background-color: #00008B;
+    color: #ffffff;
+}
+.bg-checkedout, .btn-checkedout{
+    background-color: #4B0082;
+    color: #ffffff;
+}
+.bg-cancelled, .btn-cancelled{
+    background-color: #FF69B4;
+    color: #ffffff;
+}
+.bg-blocked, .btn-blocked{
+    background-color: #8B0000;
+    color: #ffffff;
+}
+.bg-housekeeping, .btn-housekeeping{
+    background-color: #000000;
+    color: #ffffff;
+}
+
+.bg-special, .btn-special{
+    background-color: #F3F84E;
+    color: #000000;
+}
+
+.sticky-btn{
+    position: fixed;
+    right: 0px;
+    z-index: 1000;
+    top: 50%;
+    border-radius: 0 0 5px 5px;
+}
+.sticky-btn-forward{
+    transform: rotate(90deg);
+}
+.sticky-btn-forward i{
+    transform: rotate(270deg);
+}
+.sticky-btn-back{
+    transform: rotate(90deg);
+}
+.sticky-btn-back i{
+    transform: rotate(90deg);
+}
+
+
+.btn-large{
+    margin:5px;
+}
+
+.btn-medium{
+    margin:5px;
+    font-size: 10px;
+}
+
+.border-tentative{
+    border: #DEB887 1px solid;
+}
+.bg-guaranteed{
+    border: #006400 1px solid;
+}
+.border-checkedin{
+    border: #00008B 1px solid !important;
+    border-bottom: #00008B 1px solid !important;
+    border-left: #00008B 1px solid !important;
+}
+.border-checkedout{
+    border: #4B0082 1px solid;
+}
+.border-cancelled{
+    border: #FF69B4 1px solid;
+}
+.bg-blocked, .btn-blocked{
+    border: #8B0000 1px solid;
+}
+.border-housekeeping{
+    border: #000000 1px solid;
+}
+
+
+/*RESERVATIONS STATUS STYLES*/
+
+
+/*Tooltip*/
+.tooltip{
+    text-transform: uppercase;
+}
+
+
+/**Modal Size********************/
+@media (min-width: 992px) {
+    .modal-xl {
+        max-width: 1100px;
+    }
+}
+
+#roomgrid-panel table#roomgrid td,
+#roomgrid-panel table#roomgrid_wrapper td,
+#roomgrid-panel table.DTFC_Cloned td{
+    padding: 1px;
+    height: 24px;
+}
+
+/*#roomgrid-panel table.DTFC_Cloned td{*/
+/*    !*padding: 2px;*!*/
+/*    height: 18px;*/
+/*}*/
+
+
+#roomgrid-panel table#roomgrid td .btn{
+    padding: 1px 2px;
+}
+
+
+#roomgrid_wrapper  table.dataTable td, #roomgrid_wrapper  table.dataTable th{
+    min-width: 60px;
+}
+
+#roomgrid_wrapper  table.dataTable td.room-name, #roomgrid_wrapper  table.dataTable th.room-name{
+    min-width: 110px;
+}
+
+#roomgrid_wrapper  table.dataTable td.room-no, #roomgrid_wrapper  table.dataTable th.room-no{
+    min-width: 30px;
+}
+
+.panel-legends .panel-heading-btn a.btn-xs{
+    font-size: 8px;
+}
+

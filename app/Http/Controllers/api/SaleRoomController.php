@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreSaleRequest;
+use Illuminate\Support\Facades\View;
 use Exception;
 use Carbon\Carbon;
 use App\Models\RoomNumber;
@@ -26,10 +27,17 @@ use App\Models\SaleRoom;
 use App\Models\SaleRoomAllocation;
 use App\Models\SaleRoomCategory;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-
+use App\Services\ReportServices\MpdfService;
 class SaleRoomController extends Controller
 {
     use SaleRoomTrait;
+    protected $mpdfService;
+
+    public function __construct(MpdfService $mpdfService)
+    {
+        $this->mpdfService = $mpdfService;
+    }
+
     public function saleCreate(Request $request, User $user)
     {
         try {
@@ -1183,7 +1191,7 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            return response()->json('Room sale recorded successfully!');
+            return response()->json(['msg'=> 'Room sale recorded successfully!','sale_id'=> $sale->id]);
         }catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
@@ -1388,4 +1396,184 @@ class SaleRoomController extends Controller
             }
         ]));
     }
-}
+    public function printReservationDetail($id)
+    {
+        $data = SaleRoom::with([    
+            'sale_room_allocation' => function ($query) {
+                $query->with(['room_name', 'room']);
+            },
+            'sale_guest','sale_user',
+            'sale_agent',
+            'room_categories' => function ($query) {
+                $query->with('category');
+            }
+        ])->findOrFail($id);
+        // $categoryDataWithoutXb =$data->whereRelation('room_categories', 'is_xb', 0)->groupBy('category_id')->map(function ($items, $key) {           
+        //     if ($items->isEmpty()) {
+        //         return null; 
+        //     }             
+        //     return [
+        //         'is_xb' => $key,
+        //         'categories' => $items->map(function ($item) {
+        //             return [
+        //                 'category_id' => $item->category_id,
+        //                 'category_name' => $item->category->name,
+        //                 'gross_rate' => $item->gross_rate,
+        //                 'discount_per' => $item->discount_per,
+        //                 'discount_amount' => $item->discount_amount,
+        //                 'total_qty' => $item->total_qty,
+        //             ];
+        //         })->values()->all(),
+        //     ];
+        // })->values()->all();
+        // $categoryData = $data->room_categories->groupBy('category_id')->map(function ($items, $key) {           
+        //     if ($items->isEmpty()) {
+        //         return null; 
+        //     }             
+        //     return [
+        //         'is_xb' => $key,
+        //         'categories' => $items->map(function ($item) {
+        //             return [
+        //                 'category_id' => $item->category_id,
+        //                 'category_name' => $item->category->name,
+        //                 'gross_rate' => $item->gross_rate,
+        //                 'discount_per' => $item->discount_per,
+        //                 'discount_amount' => $item->discount_amount,
+        //                 'total_qty' => $item->total_qty,
+        //             ];
+        //         })->values()->all(),
+        //     ];
+        // })->values()->all();
+        // $categorySummary = collect($data)
+        //     ->where('is_xb', 0)
+        //     ->groupBy('category_id')
+        //     ->map(function ($items) {
+        //         $totalQty = $items->sum('qty');
+        //         $rateSale = number_format((float) $items->first()->rate_sale, 2); 
+        //         $categoryName = $items->first()->category->name;
+
+        //         return "{$categoryName} [{$rateSale}x{$totalQty}]";
+        //     })
+        //     ->implode(', ');
+        // $categorySummary = collect($data->room_categories)
+        //     ->where('is_xb', 0)
+        //     ->groupBy('category_id')
+        //     ->map(function ($items, $categoryId) {
+        //         $totalQty = $items->sum('qty');
+
+        //         // Always check that category relationship and rate_sale exist
+        //         $first = $items->first();
+        //         $rateSale = number_format((float) ($first->rate_sale ?? 0), 2);
+        //         $categoryName = $first->category->name ?? 'Unknown';
+
+        //         return "{$categoryName} [{$rateSale}x{$totalQty}]";
+        //     })
+        //     ->implode(', ');
+        $categorySummaryCollection = collect($data->room_categories)
+            ->where('is_xb', 0)
+            ->groupBy('category_id')
+            ->map(function ($items, $categoryId) {
+                $totalQty = $items->sum('qty');
+
+                // Always check that category relationship and rate_sale exist
+                $first = $items->first();
+                $rateSale = (float) ($first->rate_sale ?? 0);
+                $categoryName = $first->category->name ?? 'Unknown';
+
+                $amount = $rateSale * $totalQty;
+
+                return [
+                    'category_name' => $categoryName,
+                    'rate_sale' => $rateSale,
+                    'qty' => $totalQty,
+                    'amount' => $amount,
+                ];
+            });
+
+        $categorySummaryString = $categorySummaryCollection->map(function ($item) {
+            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
+        })->implode(', ');
+
+        $totalQty = $categorySummaryCollection->sum('qty');
+        $totalAmount = $categorySummaryCollection->sum('amount');
+        //dd($categorySummaryString, $totalQty, $totalAmount);
+        $name = $data->code.': RESERVATION CONFIRMATION SHEET';
+        $data = [
+            'saleRoom' => $data,
+            'name' => $name,
+            'date' => Carbon::now()->format('d/m/Y'),
+            'title' => $name,
+            'categorySummaryString' => $categorySummaryString,
+            'totalRoomQty' => $totalQty,
+            'totalAmount' => $totalAmount,
+            'totalPaid' => 0.00,
+            'totalDue' => $totalAmount,
+        ];
+
+        if ($data) {            
+            $html = view('pdf.reservation-confirmation')->with(['data' => $data, 'title' => $name])->render();
+            $header = view('pdf.header')->render();
+            $footer = view('pdf.footer')->render();
+
+            $this->mpdfService->mpdf($name); 
+            $mpdf = $this->mpdfService->getMpdf();
+
+            //$this->mpdf("$name");
+            $mpdf->SetHTMLHeader($header);
+            $mpdf->SetHTMLFooter($footer);
+            $mpdf->WriteHTML($html);
+            $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
+        }
+            
+
+            // return response($mpdf->Output('', 'S'), 200)
+            //     ->header('Content-Type', 'application/pdf')
+            //     ->header('Content-Disposition', 'inline; filename="reservation-detail.pdf"');
+            //$html = view('pdf.reservation-confirmation')->with(['data'=>$data, 'title'=>$name])->render();
+            // $header = view('Admin.pdf.header')->render();
+            // $footer = view('Admin.pdf.footer')->render();
+
+        //     $mpdf("$name");
+        //     $mpdf->SetHTMLHeader($header);
+        //     $mpdf->SetHTMLFooter($footer);
+        //     $mpdf->WriteHTML($html);
+        //     $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
+        //     $pdfData = [
+        //         'saleRoom' => $saleRoom,
+        //         'logo' => asset('storage/images/logo/logo.png'),
+        //     ];
+
+        //     $html = View::make('pdf.reservation-detail', $pdfData)->render();
+
+        //     $mpdf = new Mpdf();
+        //     $mpdf->WriteHTML($html);
+
+        //     return response($mpdf->Output('', 'S'), 200)
+        //         ->header('Content-Type', 'application/pdf')
+        //         ->header('Content-Disposition', 'inline; filename="reservation-detail.pdf"');
+        // }
+        // $html = view('pdf.reservation-confirmation')->with(['data'=>$data, 'title'=>$name])->render();
+        // // $header = view('Admin.pdf.header')->render();
+        // // $footer = view('Admin.pdf.footer')->render();
+
+        // $mpdf("$name");
+        // $mpdf->SetHTMLHeader($header);
+        // $mpdf->SetHTMLFooter($footer);
+        // $mpdf->WriteHTML($html);
+        // $mpdf->Output("{$data->confirmation->reservation}.pdf", 'I');
+        // $pdfData = [
+        //     'saleRoom' => $saleRoom,
+        //     'logo' => asset('storage/images/logo/logo.png'),
+        // ];
+
+        // $html = View::make('pdf.reservation-detail', $pdfData)->render();
+
+        // $mpdf = new Mpdf();
+        // $mpdf->WriteHTML($html);
+
+        // return response($mpdf->Output('', 'S'), 200)
+        //     ->header('Content-Type', 'application/pdf')
+        //     ->header('Content-Disposition', 'inline; filename="reservation-detail.pdf"');
+    }
+    }
+
