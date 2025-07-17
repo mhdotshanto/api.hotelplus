@@ -23,12 +23,10 @@ class RoomCategoryController extends Controller
             });
         }
 
-        $data = $query->paginate(10);
+        $categories = $query->orderBy('id', 'ASC')
+            ->paginate($request->get('per_page'));
 
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        return response()->json($categories);
     }
 
     public function getAll(Request $request)
@@ -61,7 +59,7 @@ class RoomCategoryController extends Controller
     public function update(Request $request, $roomCategory)
     {
         $item = RoomCategory::findOrFail($roomCategory);
-        
+
         $validated = $request->validate([
             'name' => 'required|max:40|unique:room_categories,name,' . $item->id,
             'rate' => 'nullable',
@@ -76,7 +74,7 @@ class RoomCategoryController extends Controller
             'message' => 'Room Category updated successfully',
         ]);
     }
-        
+
     public function destroy(RoomCategory $roomCategory)
     {
         $roomCategory->update([

@@ -12,5 +12,6 @@ class SaleRoomCategory extends Model
     {
         return $this->belongsTo(RoomCategory::class,'category_id');
     }
+
 }
 

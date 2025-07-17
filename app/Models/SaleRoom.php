@@ -58,4 +58,8 @@ class SaleRoom extends Model
     {
         return $this->hasOne(Guest::class, 'id', 'guest_id');
     }
+
+    public function user(){
+        return $this->belongsTo(User::class);
+    }
 }
