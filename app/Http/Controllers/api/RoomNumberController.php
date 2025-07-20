@@ -284,20 +284,21 @@ class RoomNumberController extends Controller
             'floor',
             'room_block_details' => function ($roomBlockQuery) use ($date_start, $date_end) {
                 $roomBlockQuery->with('roomBlock');
-
                 if ($date_start && $date_end) {
                     $roomBlockQuery->whereBetween('date', [$date_start, $date_end]);
                 }
             },
             'room_temp_details' => function ($roomTempQuery) use ($date_start, $date_end) {
-                $roomTempQuery->with('room_temp');
+                $roomTempQuery->with('room_temp', function ($roomTempQuery){
+                    $roomTempQuery->with('user');
+                });
                 if ($date_start && $date_end) {
                     $roomTempQuery->whereBetween('date', [$date_start, $date_end]);
                 }
             },
             'room_sale_allocation' => function ($roomSaleAllocationQuery) {
                 $roomSaleAllocationQuery->with('saleRoom', function ($roomAllocationSaleQuery) {
-                    $roomAllocationSaleQuery->select('id', 'user_id', 'code', 'status');
+                    $roomAllocationSaleQuery->with('user')->select('id', 'user_id', 'code', 'status');
                 });
             }
         ])->where('is_active', 1);

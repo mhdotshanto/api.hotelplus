@@ -24,7 +24,8 @@ class RoomNameController extends Controller
             });
         }
 
-        $roomNames = $query->orderBy('name', 'ASC')->paginate($request->get('per_page'));
+        $roomNames = $query->orderBy('name', 'ASC')
+            ->paginate($request->get('per_page'));
         return response()->json($roomNames);
     }
 
@@ -51,9 +52,13 @@ class RoomNameController extends Controller
         $item = RoomName::findOrFail($room_name);
 
         $validated = $request->validate([
-            'name' => 'required|max:50|unique:room_names,name,' . $item->id,
-            'short_name' => 'required|max:8|unique:room_names,short_name,'. $item->id,
-            'is_active' => 'nullable',
+            'name' => 'required|string|max:40',
+            'short_name' => 'required|string|max:16',
+            'category_id' => 'required|integer|exists:room_categories,id',
+            'bed' => 'nullable|string|in:SGL,DBL,TWN,TPL,4 BED',
+            'rate' => 'required|numeric|min:0',
+            'rate_xb' => 'required|numeric|min:0',
+            'is_active' => 'required|boolean',
         ]);
 
         $item->update($validated);

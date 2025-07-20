@@ -142,6 +142,7 @@ class GuestController extends Controller
 
     public function store(Request $request)
     {
+//        return response()->json($request->all());
         $validated = $request->validate([
             'guest_id'           => 'nullable|exists:guests,id',
             'temp_id'            => 'required|numeric',
@@ -176,11 +177,12 @@ class GuestController extends Controller
             'nationality_id'     => 'nullable|exists:countries,id',
             'preference_ids'     => 'nullable|array',
             'preference_ids.*'   => 'required|numeric',
-            'reference_id'       => 'nullable|exists:users,id',
+            'ref_id'       =>    'nullable|exists:users,id',
         ]);
+//        return response()->json($validated);
         $validated['gender'] = $validated['gender'] ?? (
-                ['mr.' => 'Male', 'mrs.' => 'Female', 'miss' => 'Female'][strtolower($validated['name_address'] ?? '')] ?? null
-            );
+            ['mr.' => 'Male', 'mrs.' => 'Female', 'miss' => 'Female'][strtolower($validated['name_address'] ?? '')] ?? null
+        );
         try {
             DB::beginTransaction();
 
@@ -208,7 +210,7 @@ class GuestController extends Controller
 
             return response()->json([
                 'message' => 'Guest created successfully.',
-                'data'    => $guest->load('preferences'),
+                'guest'    => $guest->load('preferences'),
             ], 201);
 
         } catch (\Throwable $e) {
