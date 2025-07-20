@@ -62,4 +62,14 @@ class SaleRoom extends Model
     public function user(){
         return $this->belongsTo(User::class);
     }
+
+    public function sale_user()
+    {
+        return $this->hasOne(User::class, 'id', 'user_id');
+    }
+    
+    public function sale_agent()
+    {
+        return $this->hasOne(User::class, 'id', 'ref_id');
+    }
 }

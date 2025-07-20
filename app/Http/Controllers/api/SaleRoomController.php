@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreSaleRequest;
+use Illuminate\Support\Facades\View;
 use Exception;
 use Carbon\Carbon;
 use App\Models\RoomNumber;
@@ -26,10 +27,17 @@ use App\Models\SaleRoom;
 use App\Models\SaleRoomAllocation;
 use App\Models\SaleRoomCategory;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-
+use App\Services\ReportServices\MpdfService;
 class SaleRoomController extends Controller
 {
     use SaleRoomTrait;
+    protected $mpdfService;
+
+    public function __construct(MpdfService $mpdfService)
+    {
+        $this->mpdfService = $mpdfService;
+    }
+
     public function saleCreate(Request $request, User $user)
     {
         try {
@@ -1197,10 +1205,8 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            return response()->json([
-                'message' => 'Room sale recorded successfully!',
-                'code' => $sale->code,
-            ]);
+            
+            
         }catch (\Throwable $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
