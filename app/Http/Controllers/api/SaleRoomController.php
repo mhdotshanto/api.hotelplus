@@ -1137,7 +1137,7 @@ class SaleRoomController extends Controller
             }
 
             $validated = $request->validate($this->saleRoomRules());
-
+            
             // Load related temp data with category
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
@@ -1146,19 +1146,15 @@ class SaleRoomController extends Controller
                         $roomNameQuery->select('id', 'name', 'bed', 'rate', 'rate_xb');
                     }
                 ]);
-            }])->findOrFail($validated['temp_id']);
-
-
+            }])->findOrFail($validated['temp_id']);            
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
             // Guest info
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
-
             // Total price before any discounts
             $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
-
             // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
             //            return response()->json($grossPrice);
@@ -1168,7 +1164,7 @@ class SaleRoomController extends Controller
             // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
-            //            return response()->json($groupedData);
+            //return response()->json($groupedData);
 
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
@@ -1179,10 +1175,10 @@ class SaleRoomController extends Controller
                 $validated['payment_details']['byInvoiceDiscount'],
                 $validated['payment_details']['byCategoryDiscount']
             );
+           
             // Room info
             $roomNumberIds = $temp->details->pluck('room_number_id')->unique()->toArray();
             $roomNames = RoomNumber::whereIn('id', $roomNumberIds)->pluck('name')->toArray();
-
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
 
             $sale = $this->createSaleRoom(
@@ -1201,7 +1197,6 @@ class SaleRoomController extends Controller
             );
 
             $sale->preferences()->sync($preferences);
-
             $this->createSaleCategories(
                 $groupedData,
                 $byCategoryDiscount,
@@ -1210,7 +1205,6 @@ class SaleRoomController extends Controller
                 $sale->id,
                 $tempDetailsCollection
             );
-
             $this->createSaleRoomAllocations(
                 $temp->details,
                 $sale->id
@@ -1220,7 +1214,7 @@ class SaleRoomController extends Controller
             $temp->delete();
             DB::commit();
 
-            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id]);
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
@@ -1493,12 +1487,10 @@ class SaleRoomController extends Controller
                     'qty' => $totalQty,
                     'amount' => $amount,
                 ];
-            });
-        // dd($categorySummaryCollection,$categorySummaryCollectionForExtraBed);
+            });        
         $categorySummaryStringWithoutXB = $categorySummaryCollection->map(function ($item) {
             return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
         })->implode(', ');
-
         $totalQty = $categorySummaryCollection->sum('qty');
         $totalAmount = $categorySummaryCollection->sum('amount');
         $name = $data->code . ': RESERVATION CONFIRMATION SHEET';
@@ -1507,7 +1499,10 @@ class SaleRoomController extends Controller
         })->implode(', ');
         $totalXbQty = $categorySummaryCollectionForExtraBed->sum('qty');
         $totalXbAmount = $categorySummaryCollectionForExtraBed->sum('amount');
-        //dd($categorySummaryStringForXB);
+        $roomTypeRowSpan = 1;
+        if(isset($totalXbQty) && $totalXbQty > 0){
+            $roomTypeRowSpan = 2;
+        }
         $data = [
             'saleRoom' => $data,
             'name' => $name,
@@ -1517,6 +1512,7 @@ class SaleRoomController extends Controller
             'categorySummaryStringForXB' => $categorySummaryStringForXB,
             'totalRoomQty' => $totalQty,
             'totalXbQty' => $totalXbQty,
+            'roomTypeRowSpan'=> $roomTypeRowSpan,
             'totalAmount' => $totalAmount,
             'totalPaid' => 0.00,
             'totalDue' => $totalAmount,
