@@ -28,6 +28,7 @@ use App\Models\SaleRoomAllocation;
 use App\Models\SaleRoomCategory;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use App\Services\ReportServices\MpdfService;
+
 class SaleRoomController extends Controller
 {
     use SaleRoomTrait;
@@ -42,9 +43,9 @@ class SaleRoomController extends Controller
     {
         try {
             $rooms = RoomNumber::with('roomName', 'floor')
-            ->where('is_active', 1)
-            ->orderBy('name', 'ASC')
-            ->get();
+                ->where('is_active', 1)
+                ->orderBy('name', 'ASC')
+                ->get();
 
             $room_names = RoomName::where('is_active', 1)->get();
             $floors = RoomFloor::where('is_active', 1)->get();
@@ -63,7 +64,6 @@ class SaleRoomController extends Controller
                     'preferences' => $preferences,
                 ],
             ], 200);
-
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -105,7 +105,6 @@ class SaleRoomController extends Controller
                     'room_name_id' => $validated['room_name_id'],
                     'date' => $validated['date'],
                 ]);
-
             } else {
                 $new_temp = RoomTemp::create([
                     'user_id' => $validated['user_id'],
@@ -158,7 +157,7 @@ class SaleRoomController extends Controller
 
             if ($validated['temp_id']) {
                 $room_temp = RoomTemp::find($validated['temp_id']);
-//                return response()->json($room_temp);
+                //                return response()->json($room_temp);
                 if (!$room_temp) {
                     abort(404, "Room temp not found");
                 }
@@ -172,7 +171,7 @@ class SaleRoomController extends Controller
             }
 
             // Optional: clear old details
-//            RoomTempDetail::where('room_temp_id', $room_temp_id)->delete();
+            //            RoomTempDetail::where('room_temp_id', $room_temp_id)->delete();
 
             $temp_details = [];
             $now = now();
@@ -208,7 +207,7 @@ class SaleRoomController extends Controller
 
     public function destroyRoomTempDetail(RoomTempDetail $roomTempDetail)
     {
-//        return response()->json(["roomTempDetail" => $roomTempDetail]);
+        //        return response()->json(["roomTempDetail" => $roomTempDetail]);
         $roomTempDetail->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }
@@ -224,7 +223,7 @@ class SaleRoomController extends Controller
 
             $room_temp = RoomTemp::where('id', $validated['sale_id'])->first();
 
-            if($room_temp){
+            if ($room_temp) {
                 RoomTempDetail::where('room_temp_id', $room_temp->id)
                     ->where('date', $validated['date'])
                     ->where('room_number_id', $validated['room_number_id'])
@@ -246,7 +245,7 @@ class SaleRoomController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'No hold rooms found',
-                ],404);
+                ], 404);
             }
         } catch (Exception $e) {
             return response()->json([
@@ -283,11 +282,11 @@ class SaleRoomController extends Controller
 
             if ($request->filled('sid') && $request->sid !== 'null') {
                 $roomTemp = $roomTemps->where('id', $request->id)->where('sale_id', $request->sid)->first();
-                if($roomTemp){
-                    if($roomTemp->user_id !== Auth::id()){
+                if ($roomTemp) {
+                    if ($roomTemp->user_id !== Auth::id()) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'This sale is updating by '.$roomTemp->user->name,
+                            'message' => 'This sale is updating by ' . $roomTemp->user->name,
                             'self_temp_blocks' => $self_temp_blocks,
                             'other_temp_blocks' => $other_temp_blocks,
                             'blocks' => $blocks,
@@ -303,9 +302,25 @@ class SaleRoomController extends Controller
                     }
                 }
 
-                $sale_info = SaleRoom::select('id', 'price', 'price_gross', 'discount_type', 'discount_per', 'discount_amount',
-                    'price_net', 'vat_per', 'servicecharge_per', 'date_to_confirm', 'guest_qty', 'guest_name_first',
-                    'guest_name_last', 'guest_mobile', 'eta', 'etd', 'master_room')
+                $sale_info = SaleRoom::select(
+                    'id',
+                    'price',
+                    'price_gross',
+                    'discount_type',
+                    'discount_per',
+                    'discount_amount',
+                    'price_net',
+                    'vat_per',
+                    'servicecharge_per',
+                    'date_to_confirm',
+                    'guest_qty',
+                    'guest_name_first',
+                    'guest_name_last',
+                    'guest_mobile',
+                    'eta',
+                    'etd',
+                    'master_room'
+                )
                     ->with('roomCategories.category', 'masterRoom')
                     ->where('id', $request->sid)
                     ->first();
@@ -318,11 +333,11 @@ class SaleRoomController extends Controller
                 $roomTemp = $roomTemps->where('id', $request->id)->whereNull('sale_id')->first();
             }
 
-            if($roomTemp){
+            if ($roomTemp) {
 
                 // guest info
                 $guest = Guest::find($roomTemp->guest_id);
-                if($guest){
+                if ($guest) {
                     $guest->preference_id = json_decode($guest->preference_id);
                 }
 
@@ -348,7 +363,7 @@ class SaleRoomController extends Controller
                     }
                 }
 
-                if(!empty($frequency)){
+                if (!empty($frequency)) {
                     $maxCount = max($frequency);
                     $maxBlockedRoomIds = array_keys(array_filter($frequency, function ($count) use ($maxCount) {
                         return $count === $maxCount;
@@ -615,7 +630,7 @@ class SaleRoomController extends Controller
             $roomTemp = RoomTemp::where('id', $request->id)->first();
 
             if ($request->filled('sid') && $request->sid !== 'null') {
-                if($roomTemp->sale_id != $request->sid){
+                if ($roomTemp->sale_id != $request->sid) {
                     return response()->json([
                         'success' => false,
                         'rooms' => $rooms,
@@ -626,7 +641,7 @@ class SaleRoomController extends Controller
                 }
             }
 
-            if( $request->sid === 'null' && $roomTemp && !is_null($roomTemp->sale_id)){
+            if ($request->sid === 'null' && $roomTemp && !is_null($roomTemp->sale_id)) {
                 return response()->json([
                     'success' => false,
                     'rooms' => $rooms,
@@ -711,7 +726,7 @@ class SaleRoomController extends Controller
 
         $detail_xbs = RoomTempDetailXb::where('room_temp_id', $validated['sale_id'])->get();
 
-        $room_xbs=[];
+        $room_xbs = [];
         $room_xbs = $detail_xbs
             ->groupBy('date')
             ->map(function ($items, $date) {
@@ -745,7 +760,7 @@ class SaleRoomController extends Controller
 
         $detail_xbs = RoomTempDetailXb::where('room_temp_id', $validated['sale_id'])->get();
 
-        $room_xbs=[];
+        $room_xbs = [];
         $room_xbs = $detail_xbs
             ->groupBy('date')
             ->map(function ($items, $date) {
@@ -770,7 +785,7 @@ class SaleRoomController extends Controller
         try {
             $validated = $request->validated();
 
-            if($validated['sale_id']){
+            if ($validated['sale_id']) {
                 SaleRoomAllocation::where('sale_id', $validated['sale_id'])->delete();
                 SaleRoomCategory::where('sale_id', $validated['sale_id'])->delete();
             }
@@ -781,11 +796,11 @@ class SaleRoomController extends Controller
             if (!$room_temp) {
                 throw new \Exception('Temp not found for the given temp id.');
             }
-            if ($room_temp->guest_id==0) {
+            if ($room_temp->guest_id == 0) {
                 throw new \Exception('Please add guest info before creating the sale.');
             }
             $guest = Guest::find($room_temp->guest_id);
-            if(!$guest){
+            if (!$guest) {
                 throw new \Exception('guest not found!');
             }
 
@@ -825,25 +840,24 @@ class SaleRoomController extends Controller
             $priceNet = $priceGross;
             $discountAmount = 0;
 
-            if($validated['discount_type']=='invoice'){
+            if ($validated['discount_type'] == 'invoice') {
                 $discountAmount = ($priceGross * $validated['discount_per']) / 100;
                 $priceNet = $priceGross - $discountAmount;
-            }
-            else if($validated['discount_type']=='category') {
+            } else if ($validated['discount_type'] == 'category') {
                 $sumCategoryDisAmount = collect($validated['categories'])
                     ->sum(function ($item) {
                         return (float) $item['discount_amount'];
                     });
-                    if(!empty($validated['xbs'])){
-                        $sumXbsDisAmount = collect($validated['xbs'])
-                            ->sum(function ($item) {
-                                return (float) $item['discount_amount'];
-                            });
+                if (!empty($validated['xbs'])) {
+                    $sumXbsDisAmount = collect($validated['xbs'])
+                        ->sum(function ($item) {
+                            return (float) $item['discount_amount'];
+                        });
 
-                        $priceNet = $priceGross - ($sumCategoryDisAmount + $sumXbsDisAmount);
-                    } else {
-                        $priceNet = $priceGross - $sumCategoryDisAmount;
-                    }
+                    $priceNet = $priceGross - ($sumCategoryDisAmount + $sumXbsDisAmount);
+                } else {
+                    $priceNet = $priceGross - $sumCategoryDisAmount;
+                }
             } else {
                 // no discount
                 $discountAmount = 0;
@@ -918,7 +932,7 @@ class SaleRoomController extends Controller
             }
 
             // sale_room_categories entry
-            if($validated['discount_type']=='category') {
+            if ($validated['discount_type'] == 'category') {
                 $tempDetailGroup = $roomTempDetails->groupBy(function ($item) {
                     return $item->room_category_id . '_' . $item->date;
                 });
@@ -939,7 +953,7 @@ class SaleRoomController extends Controller
                     $itemVat = (($matchedCategory['rate'] * $item['qty']) * $vat) / 100;
                     $itemSc = (($matchedCategory['rate'] * $item['qty']) * $serviceCharge) / 100;
                     $itemTotalPrice = ($matchedCategory['rate'] * $item['qty']) + $itemVat + $itemSc;
-                    $masterRoomDA = ( $itemTotalPrice * $matchedCategory['discount_per'] ) / 100;
+                    $masterRoomDA = ($itemTotalPrice * $matchedCategory['discount_per']) / 100;
 
                     SaleRoomCategory::create([
                         'sale_id' => $sale_room->id,
@@ -955,7 +969,7 @@ class SaleRoomController extends Controller
                 }
 
                 // extra beds entry
-                if(!empty($validated['xbs'])){
+                if (!empty($validated['xbs'])) {
                     $reqXbs = collect($validated['xbs']);
 
                     $tempDetailXbGroup = $roomTempDetailXbs->groupBy(function ($item) {
@@ -976,7 +990,7 @@ class SaleRoomController extends Controller
                         $itemVat = (($matchedCategory['rate'] * $item['qty']) * $vat) / 100;
                         $itemSc = (($matchedCategory['rate'] * $item['qty']) * $serviceCharge) / 100;
                         $itemTotalPrice = ($matchedCategory['rate'] * $item['qty']) + $itemVat + $itemSc;
-                        $xbRoomDA = ( $itemTotalPrice * $matchedCategory['discount_per'] ) / 100;
+                        $xbRoomDA = ($itemTotalPrice * $matchedCategory['discount_per']) / 100;
 
                         SaleRoomCategory::create([
                             'sale_id' => $sale_room->id,
@@ -1033,17 +1047,17 @@ class SaleRoomController extends Controller
             $saleRoom = SaleRoom::where('code', $request->code)->first();
 
             $roomTemp = RoomTemp::where('sale_id', $saleRoom->id)->first();
-            if($roomTemp){
+            if ($roomTemp) {
                 $temId = $roomTemp->id;
             }
 
-            if($saleRoom){
+            if ($saleRoom) {
                 $saleId = $saleRoom->id;
                 $saleRoomAllocations = SaleRoomAllocation::with('room.roomName')->where('sale_id', $saleRoom->id)->get();
 
-                if(!empty($saleRoomAllocations)){
+                if (!empty($saleRoomAllocations)) {
 
-                    if(!$roomTemp){
+                    if (!$roomTemp) {
                         $roomTemp = RoomTemp::create([
                             'sale_id' => $saleRoom->id,
                             'user_id' => Auth::id(),
@@ -1053,7 +1067,7 @@ class SaleRoomController extends Controller
                         $temId = $roomTemp->id;
 
                         foreach ($saleRoomAllocations as $sra) {
-                            if($sra->is_xb==1){
+                            if ($sra->is_xb == 1) {
                                 RoomTempDetailXb::create([
                                     'room_temp_id' => $roomTemp->id,
                                     'room_number_id' => $sra->room_id,
@@ -1123,38 +1137,34 @@ class SaleRoomController extends Controller
             }
 
             $validated = $request->validate($this->saleRoomRules());
-
+            
             // Load related temp data with category
-            $temp = RoomTemp::with(['details' => function($tempDetailsQuery) {
+            $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
                     'category',
-                    'roomName' => function($roomNameQuery) {
+                    'roomName' => function ($roomNameQuery) {
                         $roomNameQuery->select('id', 'name', 'bed', 'rate', 'rate_xb');
                     }
                 ]);
-            }])->findOrFail($validated['temp_id']);
-
-
+            }])->findOrFail($validated['temp_id']);            
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
             // Guest info
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
-
             // Total price before any discounts
             $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
-
             // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
-//            return response()->json($grossPrice);
+            //            return response()->json($grossPrice);
 
-//            return response()->json($temp->details);
+            //            return response()->json($temp->details);
 
             // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
-            $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name']." | ".$item['date']. " | ".$item['roomName']['bed']);
-//            return response()->json($groupedData);
+            $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
+            //return response()->json($groupedData);
 
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
@@ -1165,10 +1175,10 @@ class SaleRoomController extends Controller
                 $validated['payment_details']['byInvoiceDiscount'],
                 $validated['payment_details']['byCategoryDiscount']
             );
+           
             // Room info
             $roomNumberIds = $temp->details->pluck('room_number_id')->unique()->toArray();
             $roomNames = RoomNumber::whereIn('id', $roomNumberIds)->pluck('name')->toArray();
-
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
 
             $sale = $this->createSaleRoom(
@@ -1187,7 +1197,6 @@ class SaleRoomController extends Controller
             );
 
             $sale->preferences()->sync($preferences);
-
             $this->createSaleCategories(
                 $groupedData,
                 $byCategoryDiscount,
@@ -1196,7 +1205,6 @@ class SaleRoomController extends Controller
                 $sale->id,
                 $tempDetailsCollection
             );
-
             $this->createSaleRoomAllocations(
                 $temp->details,
                 $sale->id
@@ -1205,9 +1213,9 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            
-            
-        }catch (\Throwable $e) {
+
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
         }
@@ -1244,7 +1252,7 @@ class SaleRoomController extends Controller
 
             // Group temp by category/date
             $tempDetailsCollection = collect($temp->details);
-            $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name']." | ".$item['date']. " | ".$item['roomName']['bed']);
+            $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
 
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
@@ -1292,8 +1300,7 @@ class SaleRoomController extends Controller
                 'servicecharge_amount' => number_format($grossPrice->service_charge_amount, 2),
                 'price_gross' => $grossPrice->gross,
                 'discount_type' =>
-                    $discountType === 'by-invoice' ? 'invoice' :
-                        ($discountType === 'by-category' ? 'category' : 'none'),
+                $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
                 'discount_per' => $discountData['discount_per'],
                 'discount_amount' => number_format($discountData['discount_amount'], 2),
                 'price_sale' => $priceSale,
@@ -1336,7 +1343,8 @@ class SaleRoomController extends Controller
     }
 
 
-    public function saleRoomRecordByCode(Request $request) {
+    public function saleRoomRecordByCode(Request $request)
+    {
         try {
             DB::beginTransaction();
             $sale = SaleRoom::where('code', $request->code)
@@ -1383,13 +1391,14 @@ class SaleRoomController extends Controller
                 'date_to' => $dates->last(),
                 'guest' => $sale->sale_guest
             ]);
-        }catch (Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
         }
     }
 
-    public function saleRoomRecordById(SaleRoom $saleRoom) {
+    public function saleRoomRecordById(SaleRoom $saleRoom)
+    {
         return response()->json($saleRoom->load([
             'sale_room_allocation' => function ($saleRoomAllocationQuery) {
                 $saleRoomAllocationQuery->with([
@@ -1402,8 +1411,8 @@ class SaleRoomController extends Controller
                 ]);
             },
             'room_categories'  => function ($roomCategoriesQuery) {
-                $roomCategoriesQuery->select('sale_id', 'category_id','gross_rate', 'is_xb', 'discount_per', 'discount_amount', 'bed', DB::raw('SUM(qty) as total_qty'))
-                    ->with('category', function ($categoryQuery){
+                $roomCategoriesQuery->select('sale_id', 'category_id', 'gross_rate', 'is_xb', 'discount_per', 'discount_amount', 'bed', DB::raw('SUM(qty) as total_qty'))
+                    ->with('category', function ($categoryQuery) {
                         $categoryQuery->select('id', 'name');
                     })
                     ->groupBy('category_id', 'is_xb')
@@ -1412,7 +1421,8 @@ class SaleRoomController extends Controller
         ]));
     }
 
-    public function getSaleRecordForSuccessMessage(Request $request) {
+    public function getSaleRecordForSuccessMessage(Request $request)
+    {
         $saleRoom = SaleRoom::where('code', $request->get('code'))
             ->select('id', 'code', 'status')
             ->firstOrFail();
@@ -1427,5 +1437,119 @@ class SaleRoomController extends Controller
         return response()->json([
             'message' => 'SaleRoom status updated to pending.'
         ]);
+    }
+    public function printReservationDetail($id)
+    {
+        $data = SaleRoom::with([
+            'sale_room_allocation' => function ($query) {
+                $query->with(['room_name', 'room']);
+            },
+            'sale_guest',
+            'sale_user',
+            'sale_agent',
+            'room_categories' => function ($query) {
+                $query->with('category');
+            }
+        ])->findOrFail($id);
+        $categorySummaryCollection = collect($data->room_categories)
+            ->where('is_xb', 0)
+            ->groupBy('category_id')
+            ->map(function ($items, $categoryId) {
+                $totalQty = $items->sum('qty');
+                $first = $items->first();
+                $rateSale = (float) ($first->rate_sale ?? 0);
+                $categoryName = $first->category->name ?? 'Unknown';
+
+                $amount = $rateSale * $totalQty;
+
+                return [
+                    'category_name' => $categoryName,
+                    'rate_sale' => $rateSale,
+                    'qty' => $totalQty,
+                    'amount' => $amount,
+                ];
+            });
+
+        $categorySummaryCollectionForExtraBed = collect($data->room_categories)
+            ->where('is_xb', 1)
+            ->groupBy('category_id')
+            ->map(function ($items, $categoryId) {
+                $totalQty = $items->sum('qty');
+                $first = $items->first();
+                $rateSale = (float) ($first->rate_sale ?? 0);
+                $categoryName = $first->category->name ?? 'Unknown';
+
+                $amount = $rateSale * $totalQty;
+
+                return [
+                    'category_name' => $categoryName,
+                    'rate_sale' => $rateSale,
+                    'qty' => $totalQty,
+                    'amount' => $amount,
+                ];
+            });        
+        $categorySummaryStringWithoutXB = $categorySummaryCollection->map(function ($item) {
+            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
+        })->implode(', ');
+        $totalQty = $categorySummaryCollection->sum('qty');
+        $totalAmount = $categorySummaryCollection->sum('amount');
+        $name = $data->code . ': RESERVATION CONFIRMATION SHEET';
+        $categorySummaryStringForXB = $categorySummaryCollectionForExtraBed->map(function ($item) {
+            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
+        })->implode(', ');
+        $totalXbQty = $categorySummaryCollectionForExtraBed->sum('qty');
+        $totalXbAmount = $categorySummaryCollectionForExtraBed->sum('amount');
+        $roomTypeRowSpan = 1;
+        if(isset($totalXbQty) && $totalXbQty > 0){
+            $roomTypeRowSpan = 2;
+        }
+        $data = [
+            'saleRoom' => $data,
+            'name' => $name,
+            'date' => Carbon::now()->format('d/m/Y'),
+            'title' => $name,
+            'categorySummaryStringWithoutXB' => $categorySummaryStringWithoutXB,
+            'categorySummaryStringForXB' => $categorySummaryStringForXB,
+            'totalRoomQty' => $totalQty,
+            'totalXbQty' => $totalXbQty,
+            'roomTypeRowSpan'=> $roomTypeRowSpan,
+            'totalAmount' => $totalAmount,
+            'totalPaid' => 0.00,
+            'totalDue' => $totalAmount,
+        ];
+
+        if ($data) {
+            $html = view('pdf.reservation-confirmation')->with(['data' => $data, 'title' => $name])->render();
+            $header = view('pdf.header')->render();
+            $footer = view('pdf.footer')->render();
+
+            $this->mpdfService->mpdf($name);
+            $mpdf = $this->mpdfService->getMpdf();
+            $mpdf->SetHTMLHeader($header);
+            $mpdf->SetHTMLFooter($footer);
+            $mpdf->WriteHTML($html);
+            $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
+        }
+    }
+    public function reservationList(Request $request)
+    {
+        $query = SaleRoom::with(['sale_guest', 'sale_user'])
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('id', 'desc');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                    ->orWhereHas('sale_guest', function ($guestQuery) use ($search) {
+                        $guestQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $reservations = $query->paginate(10);
+
+        return response()->json($reservations);
     }
 }

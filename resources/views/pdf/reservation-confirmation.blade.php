@@ -51,19 +51,28 @@
 
             <td>Total Rooms</td>
             <td>{{$data['totalRoomQty']}} ROOMS
-            {{-- @if($data['saleRoom']->sale_room_allocation->sum('is_xb') > 1)
-                WITH {{$data['saleRoom']->sale_room_allocation->sum('is_xb')}} EXTRA BEDS
-            @elseif($data['saleRoom']->sale_room_allocation->sum('is_xb') == 1)
-                WITH {{$data['saleRoom']->sale_room_allocation->sum('is_xb')}} EXTRA BED
-            @endif --}}
+            @if($data['totalXbQty'] > 1)
+                WITH {{$data['totalXbQty']}} EXTRA BEDS
+            @elseif($data['totalXbQty'] == 1)
+                WITH {{$data['totalXbQty']}} EXTRA BED
+            @endif
             </td>
         </tr>
-        <tr>
-            <td>Room Types</td>
+       <tr>
+        
+            <td rowspan="{{$data['roomTypeRowSpan']}}">Room Types</td>
             <td>
-                {!! $data['categorySummaryString'] !!}
+                {!! $data['categorySummaryStringWithoutXB'] !!}
             </td>
         </tr>
+        @if($data['roomTypeRowSpan'] > 1)
+            <tr>
+                <td>
+                    Extra Bed: {!! $data['categorySummaryStringForXB'] !!}
+                </td>
+            </tr>
+        @endif
+        
         @if($data['saleRoom']->discount_amount > 0)
             <tr>
                 <td>Discount</td>

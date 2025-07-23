@@ -10,13 +10,13 @@ class RoomTempDetail extends Model
 
     public function category()
     {
-        return $this->belongsTo(RoomCategory::class,'room_category_id');
+        return $this->belongsTo(RoomCategory::class,'room_category_id','id');
     }
 
     public function room()
     {
         return $this->belongsTo(RoomNumber::class,'room_number_id');
-    }
+    }   
 
     public function roomName()
     {

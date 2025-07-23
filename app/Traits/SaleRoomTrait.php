@@ -130,7 +130,7 @@ trait SaleRoomTrait
         $discountPer,
         $saleId,
         $tempDetailsCollection
-    ){
+    ){       
         $insertable = [];
         foreach ($groupedData as $key => $item) {
             $item = $item[0];
@@ -160,7 +160,7 @@ trait SaleRoomTrait
                 'bed'               => $item['roomName']['bed'],
                 'qty'               => $qty,
                 'is_xb'             => 0,
-                'rate'              => $item['category']['rate'],
+                'rate'              => $item['roomName']['rate'],
                 'gross_rate'        => $grossRate,
                 'discount_per'      => MathHelper::fixDecimal($discountPerItem),
                 'discount_amount'   => MathHelper::fixDecimal($discountAmountItem),
@@ -181,7 +181,7 @@ trait SaleRoomTrait
                     'bed'               => $item['roomName']['bed'],
                     'qty'               => $qty,
                     'is_xb'             => 1,
-                    'rate'              => $item['category']['rate_xb'],
+                    'rate'              => $item['roomName']['rate_xb'],
                     'gross_rate'        => $grossXbRate,
                     'discount_per'      => MathHelper::fixDecimal($discountPerItem),
                     'discount_amount'   => MathHelper::fixDecimal($discountAmountItem),
