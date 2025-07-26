@@ -75,15 +75,15 @@ trait SaleRoomTrait
             'date' => now(),
             'price' => $totalPrice,
             'vat_per' => $config['vat'],
-            'vat_amount' => round($grossPrice->vat_amount, 2, PHP_ROUND_HALF_UP),
+            'vat_amount' => MathHelper::fixDecimal($grossPrice->vat_amount),
             'servicecharge_per' => $config['service-charge'],
-            'servicecharge_amount' => round($grossPrice->service_charge_amount, 2, PHP_ROUND_HALF_UP),
+            'servicecharge_amount' => MathHelper::fixDecimal($grossPrice->service_charge_amount),
             'price_gross' => $grossPrice->gross,
             'discount_type' =>
                 $discountType === 'by-invoice' ? 'invoice' :
                     ($discountType === 'by-category' ? 'category' : 'none'),
             'discount_per' => $discountPer,
-            'discount_amount' => round($discountAmount, 2, PHP_ROUND_HALF_UP),
+            'discount_amount' => MathHelper::fixDecimal($discountAmount),
             'price_sale' => $priceSale,
             'price_net' => $priceSale,
             'remarks' => $validated['payment_details']['remarks'],
@@ -171,8 +171,8 @@ trait SaleRoomTrait
                 $grossXbRate = $this->applyVatAndServiceCharge($item['roomName']['rate_xb'])->gross;
                 if ($discountType === 'by-category') {
                     $discountPerItem = $currentCategory['xb']['percentage'];
-                    $discountAmountItem = $grossRate * ($discountPerItem / 100);
-                    $rateSale = $grossRate - $discountAmountItem;
+                    $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
+                    $rateSale = $grossXbRate - $discountAmountItem;
                 }
                 $insertable[] = [
                     'sale_id'           => $saleId,
@@ -204,7 +204,7 @@ trait SaleRoomTrait
         if ($discountType === 'by-invoice') {
             $discountAmount = (float) ($byInvoiceDiscount['amount'] ?? 0);
             $discountPer = $grossPrice->gross > 0
-                ? round(($discountAmount / $grossPrice->gross) * 100, 2, PHP_ROUND_HALF_UP)
+                ? MathHelper::fixDecimal(($discountAmount / $grossPrice->gross) * 100)
                 : 0.0;
 
         } elseif ($discountType === 'by-category') {
@@ -214,7 +214,7 @@ trait SaleRoomTrait
             ])->sum();
 
             $discountPer = $grossPrice->gross > 0
-                ? round(($discountAmount / $grossPrice->gross) * 100, 2, PHP_ROUND_HALF_UP)
+                ? MathHelper::fixDecimal(($discountAmount / $grossPrice->gross) * 100)
                 : 0.0;
         }
 
