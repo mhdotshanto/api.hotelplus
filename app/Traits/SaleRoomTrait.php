@@ -75,15 +75,15 @@ trait SaleRoomTrait
             'date' => now(),
             'price' => $totalPrice,
             'vat_per' => $config['vat'],
-            'vat_amount' => number_format($grossPrice->vat_amount, 2),
+            'vat_amount' => round($grossPrice->vat_amount, 2, PHP_ROUND_HALF_UP),
             'servicecharge_per' => $config['service-charge'],
-            'servicecharge_amount' => number_format($grossPrice->service_charge_amount, 2),
+            'servicecharge_amount' => round($grossPrice->service_charge_amount, 2, PHP_ROUND_HALF_UP),
             'price_gross' => $grossPrice->gross,
             'discount_type' =>
                 $discountType === 'by-invoice' ? 'invoice' :
                     ($discountType === 'by-category' ? 'category' : 'none'),
             'discount_per' => $discountPer,
-            'discount_amount' => number_format($discountAmount, 2),
+            'discount_amount' => round($discountAmount, 2, PHP_ROUND_HALF_UP),
             'price_sale' => $priceSale,
             'price_net' => $priceSale,
             'remarks' => $validated['payment_details']['remarks'],
@@ -130,7 +130,7 @@ trait SaleRoomTrait
         $discountPer,
         $saleId,
         $tempDetailsCollection
-    ){       
+    ){
         $insertable = [];
         foreach ($groupedData as $key => $item) {
             $item = $item[0];
@@ -204,7 +204,7 @@ trait SaleRoomTrait
         if ($discountType === 'by-invoice') {
             $discountAmount = (float) ($byInvoiceDiscount['amount'] ?? 0);
             $discountPer = $grossPrice->gross > 0
-                ? round(($discountAmount / $grossPrice->gross) * 100, 2)
+                ? round(($discountAmount / $grossPrice->gross) * 100, 2, PHP_ROUND_HALF_UP)
                 : 0.0;
 
         } elseif ($discountType === 'by-category') {
@@ -214,7 +214,7 @@ trait SaleRoomTrait
             ])->sum();
 
             $discountPer = $grossPrice->gross > 0
-                ? round(($discountAmount / $grossPrice->gross) * 100, 2)
+                ? round(($discountAmount / $grossPrice->gross) * 100, 2, PHP_ROUND_HALF_UP)
                 : 0.0;
         }
 
