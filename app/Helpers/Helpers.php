@@ -45,7 +45,7 @@ use Illuminate\Http\Request;
         $odate->sub(new DateInterval('P1D'));
         return $odate->format(config('arrowheadit.mysqldateformat'));
     }
-    
+
 
     function excludeFromArr($arr,$exclude=''){
        if($exclude == ''){
@@ -173,7 +173,7 @@ use Illuminate\Http\Request;
     }
 
 
-    
+
 
     function getChildAll($object, $key, $order='DESC', $glue=', '){
         $array = array_keys($object->groupBy($key)->toArray());
@@ -457,5 +457,9 @@ use Illuminate\Http\Request;
         return implode(",<br>", $formattedLines);
     }
 
-    
+    function fixDecimal( $number, $decimal_places = 2, $round_type = PHP_ROUND_HALF_UP) {
+        return round($number, $decimal_places, $round_type);
+    }
+
+
 

@@ -96,6 +96,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('sale-record-for-success-message', [SaleRoomController::class, 'getSaleRecordForSuccessMessage']);
     Route::get('sale-by-id/{saleRoom}', [SaleRoomController::class, 'saleRoomRecordById']);
 
+    Route::get('sale-record-for-payment', [SaleRoomController::class, 'getSaleRecordForPayment']);
+
     Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
     Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
 });

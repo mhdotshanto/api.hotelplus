@@ -1137,7 +1137,7 @@ class SaleRoomController extends Controller
             }
 
             $validated = $request->validate($this->saleRoomRules());
-            
+
             // Load related temp data with category
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
@@ -1146,7 +1146,7 @@ class SaleRoomController extends Controller
                         $roomNameQuery->select('id', 'name', 'bed', 'rate', 'rate_xb');
                     }
                 ]);
-            }])->findOrFail($validated['temp_id']);            
+            }])->findOrFail($validated['temp_id']);
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
@@ -1175,7 +1175,7 @@ class SaleRoomController extends Controller
                 $validated['payment_details']['byInvoiceDiscount'],
                 $validated['payment_details']['byCategoryDiscount']
             );
-           
+
             // Room info
             $roomNumberIds = $temp->details->pluck('room_number_id')->unique()->toArray();
             $roomNames = RoomNumber::whereIn('id', $roomNumberIds)->pluck('name')->toArray();
@@ -1487,7 +1487,7 @@ class SaleRoomController extends Controller
                     'qty' => $totalQty,
                     'amount' => $amount,
                 ];
-            });        
+            });
         $categorySummaryStringWithoutXB = $categorySummaryCollection->map(function ($item) {
             return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
         })->implode(', ');
@@ -1551,5 +1551,11 @@ class SaleRoomController extends Controller
         $reservations = $query->paginate(10);
 
         return response()->json($reservations);
+    }
+
+    public function getSaleRecordForPayment(Request $request){
+        return response()->json(
+            SaleRoom::where('code', $request->code)->firstOrFail()
+        );
     }
 }
