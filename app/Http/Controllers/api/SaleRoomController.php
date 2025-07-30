@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreSaleRequest;
-use Illuminate\Support\Facades\View;
 use Exception;
 use Carbon\Carbon;
 use App\Models\RoomNumber;
@@ -1451,6 +1450,7 @@ class SaleRoomController extends Controller
                 $query->with('category');
             }
         ])->findOrFail($id);
+
         $categorySummaryCollection = collect($data->room_categories)
             ->where('is_xb', 0)
             ->groupBy('category_id')

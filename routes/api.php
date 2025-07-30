@@ -100,9 +100,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
     Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
+
+    Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
+
 });
 
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
 
-
 Route::get('print-reservation-detail/{id}', [SaleRoomController::class, 'printReservationDetail']);
+
+
