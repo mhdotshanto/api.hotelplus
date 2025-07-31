@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Models\AccVoucher;
 use App\Traits\SaleRoomTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -1556,6 +1557,14 @@ class SaleRoomController extends Controller
     public function getSaleRecordForPayment(Request $request){
         return response()->json(
             SaleRoom::where('code', $request->code)->firstOrFail()
+        );
+    }
+
+    public function getVoucherList(Request $request) {
+        return response()->json(
+            AccVoucher::where('sale_room_id', $request->get('sale_id'))
+                ->orderBy('created_at', 'ASC')
+                ->paginate($request->get('per_page'))
         );
     }
 }

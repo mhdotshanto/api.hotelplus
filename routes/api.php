@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/country-options', 'getCountryOptions');
         Route::get('/reference-options', 'getReferenceOptions');
         Route::get('/preference-options', 'getPreferenceOptions');
+        Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
@@ -100,9 +101,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
     Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
+    Route::get('get-voucher-list', [SaleRoomController::class, 'getVoucherList']);
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
 
+    Route::post('make-a-payment', [\App\Http\Controllers\api\PaymentController::class, 'makeAPayment']);
 });
 
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);

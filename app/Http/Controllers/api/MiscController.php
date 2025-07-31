@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccBank;
 use App\Models\Country;
 use App\Models\Preference;
 use App\Models\RoomCategory;
@@ -52,5 +53,20 @@ class MiscController extends Controller
     {
         $preferences = Preference::select('id', 'name')->get();
         return response()->json($preferences);
+    }
+
+    public function getPaymentPlatformOptions(Request $request)
+    {
+        $paymentMethod = $request->get('payment_method');
+
+        if (in_array($paymentMethod, ['card', 'bank'])) {
+            $paymentMethod = 'regular';
+        }
+
+        return response()->json(
+            AccBank::where('banking_type', $paymentMethod)
+                ->select('id', 'account_number')
+                ->get()
+        );
     }
 }

@@ -9,6 +9,10 @@ use Carbon\Carbon;
 
 trait SaleRoomTrait
 {
+    function fixDecimal( $number, $decimal_places = 2, $round_type = PHP_ROUND_HALF_UP) {
+        return round($number, $decimal_places, $round_type);
+    }
+
     public function saleRoomRules()
     {
         return [
@@ -74,15 +78,15 @@ trait SaleRoomTrait
             'date' => now(),
             'price' => $totalPrice,
             'vat_per' => $config['vat'],
-            'vat_amount' => fixDecimal($grossPrice->vat_amount),
+            'vat_amount' => $this->fixDecimal($grossPrice->vat_amount),
             'servicecharge_per' => $config['service-charge'],
-            'servicecharge_amount' => fixDecimal($grossPrice->service_charge_amount),
+            'servicecharge_amount' => $this->fixDecimal($grossPrice->service_charge_amount),
             'price_gross' => $grossPrice->gross,
             'discount_type' =>
                 $discountType === 'by-invoice' ? 'invoice' :
                     ($discountType === 'by-category' ? 'category' : 'none'),
             'discount_per' => $discountPer,
-            'discount_amount' => fixDecimal($discountAmount),
+            'discount_amount' => $this->fixDecimal($discountAmount),
             'price_sale' => $priceSale,
             'price_net' => $priceSale,
             'remarks' => $validated['payment_details']['remarks'],
@@ -161,9 +165,9 @@ trait SaleRoomTrait
                 'is_xb'             => 0,
                 'rate'              => $item['roomName']['rate'],
                 'gross_rate'        => $grossRate,
-                'discount_per'      => fixDecimal($discountPerItem),
-                'discount_amount'   => fixDecimal($discountAmountItem),
-                'rate_sale'         => fixDecimal($rateSale),
+                'discount_per'      => $this->fixDecimal($discountPerItem),
+                'discount_amount'   => $this->fixDecimal($discountAmountItem),
+                'rate_sale'         => $this->fixDecimal($rateSale),
             ];
 
             if ($item['has_xb']) {
@@ -182,9 +186,9 @@ trait SaleRoomTrait
                     'is_xb'             => 1,
                     'rate'              => $item['roomName']['rate_xb'],
                     'gross_rate'        => $grossXbRate,
-                    'discount_per'      => fixDecimal($discountPerItem),
-                    'discount_amount'   => fixDecimal($discountAmountItem),
-                    'rate_sale'         => fixDecimal($rateSale),
+                    'discount_per'      => $this->fixDecimal($discountPerItem),
+                    'discount_amount'   => $this->fixDecimal($discountAmountItem),
+                    'rate_sale'         => $this->fixDecimal($rateSale),
                 ];
             }
         }
@@ -203,7 +207,7 @@ trait SaleRoomTrait
         if ($discountType === 'by-invoice') {
             $discountAmount = (float) ($byInvoiceDiscount['amount'] ?? 0);
             $discountPer = $grossPrice->gross > 0
-                ? fixDecimal(($discountAmount / $grossPrice->gross) * 100)
+                ? $this->fixDecimal(($discountAmount / $grossPrice->gross) * 100)
                 : 0.0;
 
         } elseif ($discountType === 'by-category') {
@@ -213,7 +217,7 @@ trait SaleRoomTrait
             ])->sum();
 
             $discountPer = $grossPrice->gross > 0
-                ? fixDecimal(($discountAmount / $grossPrice->gross) * 100)
+                ? $this->fixDecimal(($discountAmount / $grossPrice->gross) * 100)
                 : 0.0;
         }
 

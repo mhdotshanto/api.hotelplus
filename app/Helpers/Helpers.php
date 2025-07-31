@@ -5,29 +5,32 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 
-    function seoURL($string, $wordLimit = 150){
-        $separator = '-';
-        if($wordLimit != 0){
-         $wordArr = explode(' ', $string);
-         $string = implode(' ', array_slice($wordArr, 0, $wordLimit));
+    if (!function_exists('seoURL')) {
+        function seoURL($string, $wordLimit = 150){
+            $separator = '-';
+            if($wordLimit != 0){
+             $wordArr = explode(' ', $string);
+             $string = implode(' ', array_slice($wordArr, 0, $wordLimit));
+            }
+
+            $quoteSeparator = preg_quote($separator, '#');
+            $trans = [
+               '&.+?;'                  => '',
+               '[^\w\d _-]'             => '',
+               '\s+'                    => $separator,
+               '('.$quoteSeparator.')+' => $separator
+              ];
+
+            $string = strip_tags($string);
+            foreach ($trans as $key => $val){
+            $string = preg_replace('#'.$key.'#i'.('UTF8_ENABLED' ? 'u' : ''), $val, $string);
+            }
+
+            $string = strtolower($string);
+            return trim(trim($string, $separator));
         }
-
-        $quoteSeparator = preg_quote($separator, '#');
-        $trans = [
-           '&.+?;'                  => '',
-           '[^\w\d _-]'             => '',
-           '\s+'                    => $separator,
-           '('.$quoteSeparator.')+' => $separator
-          ];
-
-        $string = strip_tags($string);
-        foreach ($trans as $key => $val){
-        $string = preg_replace('#'.$key.'#i'.('UTF8_ENABLED' ? 'u' : ''), $val, $string);
-        }
-
-        $string = strtolower($string);
-        return trim(trim($string, $separator));
     }
+
     function getDateTime($format,$datetime){
         if($datetime == '1970-01-01' || $datetime == '1970-01-01 00:00:00'){
             return '';
@@ -172,9 +175,6 @@ use Illuminate\Http\Request;
         return $result;
     }
 
-
-
-
     function getChildAll($object, $key, $order='DESC', $glue=', '){
         $array = array_keys($object->groupBy($key)->toArray());
         if($order=='DESC'){
@@ -184,13 +184,10 @@ use Illuminate\Http\Request;
         return implode($glue, $array);
     }
 
-
-
     function is_json($string) {
         json_decode($string);
         return (json_last_error() == JSON_ERROR_NONE);
     }
-
 
     function numToWord(float $number)
     {
@@ -262,7 +259,6 @@ use Illuminate\Http\Request;
                 return $row->paymentby;
         }
     }
-
 
     function getJobDetails($row){
         if(!is_object($row)){
@@ -336,7 +332,6 @@ use Illuminate\Http\Request;
         return $nameprefix. ' ' . $lastname .' '.$firstname;
     }
 
-
     function get_hours_range( $start = 0, $end = 86400, $step = 3600, $format = 'h:i A' ) {
         $times = array();
         foreach ( range( $start, $end, $step ) as $timestamp ) {
@@ -347,7 +342,6 @@ use Illuminate\Http\Request;
         }
         return $times;
     }
-
 
     function timeToMiliseconds($timestring){
         $timearr = explode(' ',$timestring);
@@ -382,7 +376,6 @@ use Illuminate\Http\Request;
             return 'active show';
         return 'active';
     }
-
 
     function makeOption($object, $field = 'name')
     {
@@ -426,7 +419,6 @@ use Illuminate\Http\Request;
         return $option;
     }
 
-
     function getUniqueJson($array)
     {
         return json_encode(array_values(getUnique($array)));
@@ -439,7 +431,6 @@ use Illuminate\Http\Request;
         }
         return array_unique(explode(',',str_replace(', ',',',implode(',',$array))));
     }
-
 
     function getRef($obj)
     {
@@ -457,9 +448,6 @@ use Illuminate\Http\Request;
         return implode(",<br>", $formattedLines);
     }
 
-    function fixDecimal( $number, $decimal_places = 2, $round_type = PHP_ROUND_HALF_UP) {
-        return round($number, $decimal_places, $round_type);
-    }
 
 
 
