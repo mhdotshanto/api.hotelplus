@@ -21,8 +21,7 @@ return new class extends Migration
             $table->string('reference_number', 100)->nullable();
             $table->string('payment_method', 50);
             $table->enum('status', ['pending', 'paid'])->default('pending');
-            $table->decimal('debit', 15, 2)->default(0);
-            $table->decimal('credit', 15, 2)->default(0);
+            $table->decimal('amount', 15, 2)->default(0);
             $table->timestamps();
         });
     }

@@ -15,8 +15,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $reference_number
  * @property string $payment_method // e.g., 'cash', 'bank'
  * @property string $status // 'pending' or 'paid'
- * @property float $debit
- * @property float $credit
+ * @property float $amount
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\api;
 
 use App\Models\AccVoucher;
+use App\Services\PaymentService;
 use App\Traits\SaleRoomTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -1127,7 +1128,7 @@ class SaleRoomController extends Controller
         }
     }
 
-    public function saleRoom(Request $request)
+    public function saleRoom(Request $request, PaymentService $paymentService)
     {
         try {
             DB::beginTransaction();
@@ -1147,19 +1148,19 @@ class SaleRoomController extends Controller
                     }
                 ]);
             }])->findOrFail($validated['temp_id']);
+
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
             // Guest info
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
+
             // Total price before any discounts
             $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
+
             // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
-            //            return response()->json($grossPrice);
-
-            //            return response()->json($temp->details);
 
             // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
@@ -1195,6 +1196,8 @@ class SaleRoomController extends Controller
                 $roomNames,
                 $config
             );
+
+            if ($sale->status == 'checkin') $paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
 
             $sale->preferences()->sync($preferences);
             $this->createSaleCategories(
@@ -1429,14 +1432,22 @@ class SaleRoomController extends Controller
         return response()->json($saleRoom);
     }
 
-    public function updateToCheckIn(SaleRoom $saleRoom)
+    public function updateToCheckIn(SaleRoom $saleRoom, PaymentService $paymentService)
     {
-        $saleRoom->status = 'checkin';
-        $saleRoom->save();
-
-        return response()->json([
-            'message' => 'SaleRoom status updated to pending.'
-        ]);
+        try {
+            DB::beginTransaction();
+            $saleRoom->status = 'checkin';
+            $saleRoom->save();
+            $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
+            DB::commit();
+            return response()->json(['message' => 'SaleRoom status updated to pending.']);
+        }catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to update SaleRoom. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     public function printReservationDetail($id)
     {
