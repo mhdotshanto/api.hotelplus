@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AccBank;
+use App\Models\AccParty;
 use App\Models\Country;
 use App\Models\Preference;
 use App\Models\RoomCategory;
@@ -67,6 +68,13 @@ class MiscController extends Controller
             AccBank::where('banking_type', $paymentMethod)
                 ->select('id', 'account_number')
                 ->get()
+        );
+    }
+
+    public function getPartyOptions()
+    {
+        return response()->json(
+            AccParty::select('id', 'name', 'contact_person', 'relation_id')->get()
         );
     }
 }

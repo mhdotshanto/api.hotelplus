@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reference-options', 'getReferenceOptions');
         Route::get('/preference-options', 'getPreferenceOptions');
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
+        Route::get('/party-options', 'getPartyOptions');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
