@@ -92,16 +92,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('sale-room', [SaleRoomController::class, 'saleRoom']);
     Route::post('update-sale-room/{saleId}', [SaleRoomController::class, 'updateSaleRoom']);
-
     Route::get('sale-by-code', [SaleRoomController::class, 'saleRoomRecordByCode']);
     Route::get('sale-record-for-success-message', [SaleRoomController::class, 'getSaleRecordForSuccessMessage']);
     Route::get('sale-by-id/{saleRoom}', [SaleRoomController::class, 'saleRoomRecordById']);
-
     Route::get('sale-record-for-payment', [SaleRoomController::class, 'getSaleRecordForPayment']);
-
     Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
     Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
     Route::get('get-voucher-list', [SaleRoomController::class, 'getVoucherList']);
+    Route::get('get-ledger-list', [SaleRoomController::class, 'getLedgerListBySaleId']);
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
 

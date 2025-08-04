@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Models\AccLedger;
 use App\Models\AccVoucher;
 use App\Services\PaymentService;
 use App\Traits\SaleRoomTrait;
@@ -1576,6 +1577,15 @@ class SaleRoomController extends Controller
             AccVoucher::where('sale_room_id', $request->get('sale_id'))
                 ->orderBy('created_at', 'ASC')
                 ->paginate($request->get('per_page'))
+        );
+    }
+
+    public function getLedgerListBySaleId(Request $request){
+        return response()->json(
+            AccLedger::where('sale_room_id', $request->get('sale_id'))
+                ->where('type', 'sale')
+                ->with('head')
+                ->get()
         );
     }
 }
