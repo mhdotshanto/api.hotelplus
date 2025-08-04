@@ -102,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('get-ledger-list', [SaleRoomController::class, 'getLedgerListBySaleId']);
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
+    Route::apiResource('acc-parties', \App\Http\Controllers\api\AccPartyController::class);
 
     Route::post('make-a-payment', [\App\Http\Controllers\api\PaymentController::class, 'makeAPayment']);
 });
