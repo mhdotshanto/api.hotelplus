@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property float $amount
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property mixed $acc_party_id
  */
 
 class AccVoucher extends Model

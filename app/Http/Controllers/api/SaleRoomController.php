@@ -1575,6 +1575,7 @@ class SaleRoomController extends Controller
     public function getVoucherList(Request $request) {
         return response()->json(
             AccVoucher::where('sale_room_id', $request->get('sale_id'))
+                ->where('payment_method', '!=', 'N/A')
                 ->orderBy('created_at', 'ASC')
                 ->paginate($request->get('per_page'))
         );

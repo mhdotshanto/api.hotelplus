@@ -17,13 +17,19 @@ class PaymentController extends Controller
             DB::beginTransaction();
             $validated = $request->validate([
                 'sale_id'           => 'required|numeric|exists:sale_rooms,id',
-                'payment_method'    => 'required|in:card,cash,bank,bkash,nagad,rocket',
+                'payment_method'    => 'required|in:cash,card,bank,bkash,nagad,rocket,party',
                 'amount'            => 'required|numeric|min:0',
                 'reference_number'  => 'required_if:payment_method,card,bkash,nagad,rocket,bank|string|max:255',
                 'platform_id'       => 'required_if:payment_method,card,bkash,nagad,rocket,bank|numeric|exists:acc_banks,id',
+                'party_id'          => 'required_if:payment_method,party|exists:acc_parties,id',
                 'notes'             => 'nullable|string',
                 'staff_id'          => 'nullable|numeric|exists:users,id',
             ]);
+
+            if (in_array($validated['payment_method'], ['card', 'bank', 'bkash', 'nagad', 'rocket'])) {
+                $validated['payment_method'] = 'bank';
+//                $validated['original_method'] = $validated['payment_method'];
+            }
 
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
 
@@ -34,6 +40,7 @@ class PaymentController extends Controller
             $voucher = $paymentService->reservationPaymentVoucherEntry(
                 $saleRecord->id,
                 $validated['platform_id']??0,
+                $validated['party_id']??0,
                 $validated['notes']??null,
                 $validated['reference_number'] ?? null,
                 $validated['payment_method'],
