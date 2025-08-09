@@ -4,21 +4,32 @@ namespace App\Services;
 
 use App\Models\AccHead;
 use App\Models\AccLedger;
+use App\Models\AccNote;
 use App\Models\AccVoucher;
 use App\Models\SaleRoom;
 use Illuminate\Support\Carbon;
 
 class PaymentService
 {
-    protected $saleRoomHeadId;
-    protected $reservationPaymentHeadId;
+    protected int $saleRoomHeadId;
+    protected int $reservationPaymentHeadId;
+    protected int $refundAmountHeadId;
+    protected int $adjustAmountHeadId;
+    protected int $discountHeadId;
 
     public function __construct()
     {
-        $saleRoomHead                     = AccHead::where('slug','sale-room')->select('id')->firstOrFail();
-        $reservationPaymentHead           = AccHead::where('slug','reservation-payment')->select('id')->firstOrFail();
-        $this->saleRoomHeadId             = $saleRoomHead->id;
-        $this->reservationPaymentHeadId   = $reservationPaymentHead->id;
+        $saleRoomHead                       = AccHead::where('slug','sale-room')->select('id')->firstOrFail();
+        $reservationPaymentHead             = AccHead::where('slug','reservation-payment')->select('id')->firstOrFail();
+        $refundAmountHead                   = AccHead::where('slug','refund-amount')->select('id')->firstOrFail();
+        $adjustAmountHead                   = AccHead::where('slug','adjust-amount')->select('id')->firstOrFail();
+        $discountHead                       = AccHead::where('slug','reservation-payment')->select('id')->firstOrFail();
+
+        $this->saleRoomHeadId               = $saleRoomHead->id;
+        $this->reservationPaymentHeadId     = $reservationPaymentHead->id;
+        $this->refundAmountHeadId           = $refundAmountHead->id;
+        $this->adjustAmountHeadId           = $adjustAmountHead->id;
+        $this->discountHeadId               = $discountHead->id;
     }
 
     //insert package sale ledger entry method
@@ -39,7 +50,7 @@ class PaymentService
         ]);
     }
 
-    //insert package sale cash book entry method
+    //insert package sale cashbook entry method
     public function insertPackageSaleCashBookEntry(
         AccVoucher $voucher,
         string $accType
@@ -97,6 +108,7 @@ class PaymentService
         int $saleId,
         int | null $platformId,
         int | null $partyId,
+        int | null $receiverId,
         string | null $note,
         string | null $referenceNumber,
         string $paymentMethod,
@@ -107,6 +119,7 @@ class PaymentService
             "acc_bank_id"       => $platformId??0,
             "sale_room_id"      => $saleId,
             "acc_party_id"      => $partyId??0,
+            "receiver_id"       => $receiverId??0,
             "type"              => "payment",
             "note"              => $note,
             "reference_number"  => $referenceNumber,
@@ -129,6 +142,32 @@ class PaymentService
         ]);
     }
 
+    //insert reservation refund voucher entry
+    public function reservationRefundVoucherEntry(
+        int $saleId,
+        int | null $platformId,
+        int | null $partyId,
+        int | null $receiverId,
+        string | null $note,
+        string | null $referenceNumber,
+        string $paymentMethod,
+        string $amount,
+    ) {
+        return AccVoucher::create([
+            "acc_head_id"       => $this->refundAmountHeadId,
+            "acc_bank_id"       => $platformId??0,
+            "sale_room_id"      => $saleId,
+            "acc_party_id"      => $partyId??0,
+            "receiver_id"       => $receiverId??0,
+            "type"              => "refund",
+            "note"              => $note,
+            "reference_number"  => $referenceNumber,
+            "payment_method"    => $paymentMethod,
+            "amount"            => $amount,
+        ]);
+    }
+
+    //insert reservation payment cashbook entry
     public function reservationPaymentCashBookEntry(AccVoucher $voucher){
         // cashbook entry for (acc_type:sale) debit side
         AccLedger::create([
@@ -139,7 +178,6 @@ class PaymentService
             'date'             => Carbon::now(),
             'type'             => 'cashbook',
             'acc_type'         => 'sale',
-            'note'             => $voucher->note,
             'payment_method'   => $voucher->payment_method,
             'is_cash'          => $voucher->payment_method === 'cash',
             'reference_number' => $voucher->reference_number,
@@ -156,14 +194,13 @@ class PaymentService
                 'date'             => Carbon::now(),
                 'type'             => 'cashbook',
                 'acc_type'         => 'bank',
-                'note'             => $voucher->note,
                 'payment_method'   => $voucher->payment_method,
                 'reference_number' => $voucher->reference_number,
                 'credit'           => $voucher->amount,
             ]);
         }
 
-        // if party-due then cashbook entry (acc_type:party) credit side
+        // if party then cashbook entry (acc_type:party) credit side
         if ($voucher->payment_method == 'party') {
             AccLedger::create([
                 'voucher_id'       => $voucher->id,
@@ -173,7 +210,6 @@ class PaymentService
                 'date'             => Carbon::now(),
                 'type'             => 'cashbook',
                 'acc_type'         => 'party',
-                'note'             => $voucher->note,
                 'payment_method'   => $voucher->payment_method,
                 'reference_number' => $voucher->reference_number,
                 'credit'           => $voucher->amount,
@@ -181,28 +217,103 @@ class PaymentService
         }
     }
 
+    //insert reservation refund cashbook entry
+    public function reservationRefundCashbookEntry(AccVoucher $voucher) {
+        // cashbook entry for refund amount (acc_type:sale) credit side
+        AccLedger::create([
+            'voucher_id'       => $voucher->id,
+            'sale_room_id'     => $voucher->sale_room_id,
+            'bank_id'          => $voucher->acc_bank_id,
+            'party_id'         => $voucher->acc_party_id,
+            'date'             => Carbon::now(),
+            'type'             => 'cashbook',
+            'acc_type'         => 'sale',
+            'payment_method'   => $voucher->payment_method,
+            'is_cash'          => $voucher->payment_method === 'cash',
+            'reference_number' => $voucher->reference_number,
+            'credit'           => $voucher->amount,
+        ]);
+
+        // if bank payment then cashbook entry for refund amount (acc_type:bank) debit side
+        if ($voucher->payment_method == 'bank') {
+            AccLedger::create([
+                'voucher_id'       => $voucher->id,
+                'sale_room_id'     => $voucher->sale_room_id,
+                'bank_id'          => $voucher->acc_bank_id,
+                'party_id'          => $voucher->acc_party_id,
+                'date'             => Carbon::now(),
+                'type'             => 'cashbook',
+                'acc_type'         => 'bank',
+                'payment_method'   => $voucher->payment_method,
+                'reference_number' => $voucher->reference_number,
+                'debit'            => $voucher->amount,
+            ]);
+        }
+
+        // if party then cashbook entry  for refund amount (acc_type:party) debit side
+        if ($voucher->payment_method == 'party') {
+            AccLedger::create([
+                'voucher_id'       => $voucher->id,
+                'sale_room_id'     => $voucher->sale_room_id,
+                'bank_id'          => $voucher->acc_bank_id,
+                'party_id'         => $voucher->acc_party_id,
+                'date'             => Carbon::now(),
+                'type'             => 'cashbook',
+                'acc_type'         => 'party',
+                'payment_method'   => $voucher->payment_method,
+                'reference_number' => $voucher->reference_number,
+                'debit'            => $voucher->amount,
+            ]);
+        }
+    }
+
+    //ledger entry
     public function ledgerEntry(
         AccVoucher $voucher,
         string $type,
         string $accType
     ) {
+        $accNote = null;
+        if (!empty($voucher->note)) {
+            $accNote = AccNote::create(['name' => $voucher->note]);
+        }
+
+        // which account ID to assign
+        $accHeadId = $accType === 'acc_head' ? $voucher->acc_head_id : 0;
+        $bankId    = $accType === 'bank'     ? $voucher->acc_bank_id : 0;
+        $partyId   = $accType === 'party'    ? $voucher->acc_party_id : 0;
+
+        //debit/credit logic
+        $isBankOrParty = in_array($accType, ['bank', 'party']);
+        $isRefund      = $voucher->type === 'refund';
+
+        $debit  = $isBankOrParty ? $voucher->amount : 0.00;
+        $credit = !$isBankOrParty ? $voucher->amount : 0.00;
+
+        // If it's a refund, swap debit and credit
+        if ($isRefund) {
+            [$debit, $credit] = [$credit, $debit];
+        }
+
         return AccLedger::create([
             'voucher_id'        => $voucher->id,
             'sale_room_id'      => $voucher->sale_room_id,
-            'acc_head_id'       => $accType == 'acc_head' ? $voucher->acc_head_id : 0,
-            'bank_id'           => $accType == 'bank' ? $voucher->acc_bank_id : 0,
-            'party_id'          => $accType == 'party' ? $voucher->acc_party_id : 0,
+            'acc_head_id'       => $accHeadId,
+            'bank_id'           => $bankId,
+            'party_id'          => $partyId,
+            'note_id'           => $accNote?->id??0,
             'date'              => Carbon::now(),
             'type'              => $type,
             'acc_type'          => $accType,
-            'note'              => $voucher->note,
             'is_cash'           => true,
             'reference_number'  => $voucher->reference_number,
-            'debit'             => ($accType == 'bank' || $accType == 'party') ? $voucher->amount : 0.00,
-            'credit'            => ($accType != 'bank' && $accType != 'party') ? $voucher->amount : 0.00,
+            'debit'             => $debit,
+            'credit'            => $credit,
         ]);
     }
 
+
+    // reservation payment ledgers entry
     public function reservationPaymentLedgersEntry(AccVoucher $voucher) {
         //sale ledger entry (acc_type:sale)
         $this->ledgerEntry(
@@ -219,7 +330,7 @@ class PaymentService
         );
 
         //if payment method is bank then insert a bank ledger (acc_type:bank)
-        if($voucher->payment_method != 'cash' && $voucher->payment_method != 'party-due') {
+        if($voucher->payment_method == 'bank') {
             $this->ledgerEntry(
                 $voucher,
                 'bank',
@@ -227,7 +338,7 @@ class PaymentService
             );
         }
 
-        //if payment method is party-due then insert a party ledger (acc_type:party)
+        //if payment method is party then insert a party ledger (acc_type:party)
         if($voucher->payment_method == 'party') {
             $this->ledgerEntry(
                 $voucher,
@@ -237,5 +348,9 @@ class PaymentService
         }
         $voucher->status = 'paid';
         $voucher->save();
+    }
+
+    public function reservationRefundLedgersEntry(AccVoucher $voucher) {
+        $this->reservationPaymentLedgersEntry($voucher);
     }
 }

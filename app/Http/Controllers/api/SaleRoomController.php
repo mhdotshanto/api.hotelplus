@@ -1134,9 +1134,7 @@ class SaleRoomController extends Controller
         try {
             DB::beginTransaction();
             $authenticatedUser = auth()->user();
-            if (!$authenticatedUser) {
-                throw new UnauthorizedHttpException('', 'Unauthenticated');
-            }
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
             $validated = $request->validate($this->saleRoomRules());
 
@@ -1153,7 +1151,7 @@ class SaleRoomController extends Controller
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
-            // Guest info
+            // Guest  & preferences
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
 
@@ -1166,7 +1164,6 @@ class SaleRoomController extends Controller
             // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
-            //return response()->json($groupedData);
 
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
@@ -1230,34 +1227,41 @@ class SaleRoomController extends Controller
         try {
             DB::beginTransaction();
             $authenticatedUser = auth()->user();
-            if (!$authenticatedUser) {
-                throw new UnauthorizedHttpException('', 'Unauthenticated');
-            }
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
             $validated = $request->validate($this->saleRoomRules());
 
             // Find and validate the existing sale
             $sale = SaleRoom::findOrFail($saleId);
 
-            // Load temp with details
-            $temp = RoomTemp::with(['details.category'])->findOrFail($validated['temp_id']);
+            // Load related temp data with category
+            $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
+                $tempDetailsQuery->with([
+                    'category',
+                    'roomName' => function ($roomNameQuery) {
+                        $roomNameQuery->select('id', 'name', 'bed', 'rate', 'rate_xb');
+                    }
+                ]);
+            }])->findOrFail($validated['temp_id']);
+
+            // Get basic config (VAT, service charge, etc.)
+            $config = Config::pluck('value', 'slug')->toArray();
 
             // Guest & preferences
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
 
-            // Config
-            $config = Config::pluck('value', 'slug')->toArray();
-
-            // Total price
+            // Total price before any discounts
             $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
 
+            // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
 
-            // Group temp by category/date
+            // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
 
+//            return response()->json($validated['payment_details']['byCategoryDiscount']);
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
 
@@ -1274,8 +1278,8 @@ class SaleRoomController extends Controller
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
 
             // === DELETE existing allocations and categories ===
-            $sale->categories()->delete();
-            $sale->allocations()->delete();
+            $sale->room_categories()->delete();
+            $sale->sale_room_allocation()->delete();
 
             // === UPDATE SaleRoom ===
             $sale->update([
@@ -1296,15 +1300,13 @@ class SaleRoomController extends Controller
                 'room_qty' => $temp->details->sum('qty'),
                 'xb_qty' => $temp->details->where('has_xb', 1)->sum('qty'),
                 'date' => now(),
-
                 'price' => $totalPrice,
                 'vat_per' => $config['vat'],
                 'vat_amount' => number_format($grossPrice->vat_amount, 2),
                 'servicecharge_per' => $config['service-charge'],
                 'servicecharge_amount' => number_format($grossPrice->service_charge_amount, 2),
                 'price_gross' => $grossPrice->gross,
-                'discount_type' =>
-                $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
+                'discount_type' => $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
                 'discount_per' => $discountData['discount_per'],
                 'discount_amount' => number_format($discountData['discount_amount'], 2),
                 'price_sale' => $priceSale,
@@ -1315,12 +1317,11 @@ class SaleRoomController extends Controller
                 'eta' => Carbon::createFromFormat('h:i A', $validated['payment_details']['eta'])->format('H:i:s'),
                 'etd' => Carbon::createFromFormat('h:i A', $validated['payment_details']['etd'])->format('H:i:s'),
                 'date_to_confirm' => now(),
-                'status' => $validated['status'],
+                'status' => $sale->status,
                 'is_room_allocated' => 0,
             ]);
 
             $sale->preferences()->sync($preferences);
-
             // Recreate categories and allocations
             $this->createSaleCategories(
                 $groupedData,
@@ -1339,7 +1340,7 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            return response()->json('Room sale updated successfully!');
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
         } catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage(), 500);
@@ -1378,6 +1379,7 @@ class SaleRoomController extends Controller
                         'room_number_id' => $allocation->room_number_id,
                         'room_category_id' => $allocation->room_category_id,
                         'room_name_id' => $allocation->room_name_id,
+                        'bed'   => $allocation->bed,
                         'date' => $allocation->date,
                         'has_xb' => $allocation->is_xb,
                     ];
@@ -1450,6 +1452,23 @@ class SaleRoomController extends Controller
             ], 500);
         }
     }
+    public function updateToCheckOut(SaleRoom $saleRoom)
+    {
+        try {
+            DB::beginTransaction();
+            $saleRoom->status = 'checkout';
+            $saleRoom->save();
+            DB::commit();
+            return response()->json(['message' => 'SaleRoom status updated to pending.']);
+        }catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to update SaleRoom. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function printReservationDetail($id)
     {
         $data = SaleRoom::with([

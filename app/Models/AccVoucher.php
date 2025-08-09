@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property mixed $acc_party_id
+ * @property mixed $type
  */
 
 class AccVoucher extends Model

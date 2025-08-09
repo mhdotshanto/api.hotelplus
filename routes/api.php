@@ -91,21 +91,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::resource('config', ConfigController::class)->only(['index', 'update']);
 
-    Route::post('sale-room', [SaleRoomController::class, 'saleRoom']);
-    Route::post('update-sale-room/{saleId}', [SaleRoomController::class, 'updateSaleRoom']);
-    Route::get('sale-by-code', [SaleRoomController::class, 'saleRoomRecordByCode']);
-    Route::get('sale-record-for-success-message', [SaleRoomController::class, 'getSaleRecordForSuccessMessage']);
-    Route::get('sale-by-id/{saleRoom}', [SaleRoomController::class, 'saleRoomRecordById']);
-    Route::get('sale-record-for-payment', [SaleRoomController::class, 'getSaleRecordForPayment']);
-    Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
-    Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
-    Route::get('get-voucher-list', [SaleRoomController::class, 'getVoucherList']);
-    Route::get('get-ledger-list', [SaleRoomController::class, 'getLedgerListBySaleId']);
+    Route::controller(SaleRoomController::class)->group(function () {
+        Route::post('sale-room', 'saleRoom');
+        Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
+        Route::get('sale-by-code', 'saleRoomRecordByCode');
+        Route::get('sale-record-for-success-message', 'getSaleRecordForSuccessMessage');
+        Route::get('sale-by-id/{saleRoom}', 'saleRoomRecordById');
+        Route::get('sale-record-for-payment', 'getSaleRecordForPayment');
+        Route::post('checkin/{saleRoom}', 'updateToCheckIn');
+        Route::post('checkout/{saleRoom}', 'updateToCheckOut');
+        Route::get('reservation-list', 'reservationList');
+        Route::get('get-voucher-list', 'getVoucherList');
+        Route::get('get-ledger-list', 'getLedgerListBySaleId');
+    });
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
     Route::apiResource('acc-parties', \App\Http\Controllers\api\AccPartyController::class);
 
-    Route::post('make-a-payment', [\App\Http\Controllers\api\PaymentController::class, 'makeAPayment']);
+    Route::controller(\App\Http\Controllers\api\PaymentController::class)->group(function () {
+        Route::post('make-a-payment', 'makeAPayment');
+        Route::post('refund', 'refund');
+    });
+
 });
 
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);

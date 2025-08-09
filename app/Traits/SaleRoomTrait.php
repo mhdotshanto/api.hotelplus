@@ -120,6 +120,7 @@ trait SaleRoomTrait
                 'room_number_id' => $room->room_number_id,
                 'room_category_id' => $room->room_category_id,
                 'room_name_id' => $room->room_name_id,
+                'bed' => $room->bed,
                 'date' => $room->date,
                 'is_xb' => $room->has_xb,
             ]);
