@@ -1441,7 +1441,8 @@ class SaleRoomController extends Controller
             DB::beginTransaction();
             $saleRoom->status = 'checkin';
             $saleRoom->save();
-            $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
+//            if (!$saleRoom->is_confirmed)
+                $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
             DB::commit();
             return response()->json(['message' => 'SaleRoom status updated to pending.']);
         }catch (\Exception $e) {

@@ -11,25 +11,14 @@ use Illuminate\Support\Carbon;
 
 class PaymentService
 {
-    protected int $saleRoomHeadId;
-    protected int $reservationPaymentHeadId;
-    protected int $refundAmountHeadId;
-    protected int $adjustAmountHeadId;
-    protected int $discountHeadId;
+    const SALE_ROOM_HEAD_SLUG           = "sale-room";
+    const SALE_ROOM_PAYMENT_HEAD_SLUG   = "sale-room-payment";
+    const SALE_ROOM_REFUND_HEAD_SLUG    = "sale-room-refund";
+    const SALE_ROOM_ADJUST_HEAD_SLUG    = "sale-room-refund";
+    const SALE_ROOM_DISCOUNT_HEAD_SLUG  = "sale-room-discount";
 
-    public function __construct()
-    {
-        $saleRoomHead                       = AccHead::where('slug','sale-room')->select('id')->firstOrFail();
-        $reservationPaymentHead             = AccHead::where('slug','reservation-payment')->select('id')->firstOrFail();
-        $refundAmountHead                   = AccHead::where('slug','refund-amount')->select('id')->firstOrFail();
-        $adjustAmountHead                   = AccHead::where('slug','adjust-amount')->select('id')->firstOrFail();
-        $discountHead                       = AccHead::where('slug','reservation-payment')->select('id')->firstOrFail();
-
-        $this->saleRoomHeadId               = $saleRoomHead->id;
-        $this->reservationPaymentHeadId     = $reservationPaymentHead->id;
-        $this->refundAmountHeadId           = $refundAmountHead->id;
-        $this->adjustAmountHeadId           = $adjustAmountHead->id;
-        $this->discountHeadId               = $discountHead->id;
+    public function getHeadIdBySlug(string $slug) {
+        return AccHead::select('id')->where('slug', $slug)->first()->id;
     }
 
     //insert package sale ledger entry method
@@ -41,7 +30,7 @@ class PaymentService
         return AccLedger::create([
             'voucher_id'        => $voucher->id,
             'sale_room_id'      => $voucher->sale_room_id,
-            'acc_head_id'       => $accType == 'acc_head' ? $this->saleRoomHeadId : 0,
+            'acc_head_id'       => $accType == 'acc_head' ? $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG) : 0,
             'date'              => Carbon::now(),
             'type'              => $type,
             'acc_type'          => $accType,
@@ -58,7 +47,7 @@ class PaymentService
         AccLedger::create([
             'voucher_id'        => $voucher->id,
             'sale_room_id'      => $voucher->sale_room_id,
-            'acc_head_id'       => $accType == 'acc_head' ? $this->saleRoomHeadId : 0,
+            'acc_head_id'       => $accType == 'acc_head' ? $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)  : 0,
             'date'              => Carbon::now(),
             'type'              => 'cashbook',
             'acc_type'          => $accType,
@@ -95,7 +84,7 @@ class PaymentService
         //general ledger entry (acc_type:acc_head)
         $this->packageSaleLedgerEntry(
             $billingVoucher,
-            'general ',
+            'general',
             'acc_head'
         );
 
@@ -115,7 +104,7 @@ class PaymentService
         string $amount,
     ) {
         return AccVoucher::create([
-            "acc_head_id"       => $this->reservationPaymentHeadId,
+            "acc_head_id"       => $this->getHeadIdBySlug(self::SALE_ROOM_PAYMENT_HEAD_SLUG),
             "acc_bank_id"       => $platformId??0,
             "sale_room_id"      => $saleId,
             "acc_party_id"      => $partyId??0,
@@ -132,13 +121,57 @@ class PaymentService
     public function reservationBillingVoucherEntry(SaleRoom $saleRoom) {
         return AccVoucher::create([
             'receipt_ref'           => $saleRoom->code,
-            'acc_head_id'           => $this->saleRoomHeadId,
+            'acc_head_id'           => $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG),
             'acc_bank_id'           => 0,
             'sale_room_id'          => $saleRoom->id,
             'type'                  => "bill",
             'payment_method'        => "N/A",
             'status'                => "N/A",
             'amount'                => $saleRoom->price_sale,
+        ]);
+    }
+
+    //create adjust or discount voucher entry
+    public function insertAdjustOrDiscountSaleVoucher(
+        int $saleId,
+        string $type,
+        string | null $note,
+        string $amount,
+        string $receiver_id
+    ) {
+        $accHeadId = 0;
+        if ($type == 'adjustment') $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_ADJUST_HEAD_SLUG);
+        if ($type == 'discount') $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_DISCOUNT_HEAD_SLUG);
+        return AccVoucher::create([
+            'receipt_ref'       => "N/A",
+            'acc_head_id'       => $accHeadId,
+            'sale_room_id'      => $saleId,
+            'receiver_id'       => $receiver_id,
+            'type'              => $type,
+            'note'              => $note,
+            'payment_method'    => "N/A",
+            'status'            => "N/A",
+            'amount'            => $amount,
+        ]);
+    }
+
+    //create adjust or discount cashbook entries
+    public function insertAdjustOrDiscountCashbookEntries(
+        AccVoucher $voucher,
+        string $accType
+    ){
+        $accNote = null;
+        if (!empty($voucher->note)) $accNote = AccNote::create(['name' => $voucher->note]);
+        return AccLedger::create([
+            'voucher_id' => $voucher->id,
+            'sale_room_id'  => $voucher->sale_room_id,
+            'acc_head_id'   => $voucher->acc_head_id,
+            'note_id'   =>  $accNote->id??0,
+            'date'  => Carbon::now(),
+            'type'  => "cashbook",
+            'acc_type'  => $accType,
+            'debit' => $accType == 'sale' ? $voucher->amount : 0.00,
+            'credit' => $accType == 'acc_head' ? $voucher->amount : 0.00,
         ]);
     }
 
@@ -154,7 +187,7 @@ class PaymentService
         string $amount,
     ) {
         return AccVoucher::create([
-            "acc_head_id"       => $this->refundAmountHeadId,
+            "acc_head_id"       => $this->getHeadIdBySlug(self::SALE_ROOM_REFUND_HEAD_SLUG),
             "acc_bank_id"       => $platformId??0,
             "sale_room_id"      => $saleId,
             "acc_party_id"      => $partyId??0,
@@ -274,9 +307,7 @@ class PaymentService
         string $accType
     ) {
         $accNote = null;
-        if (!empty($voucher->note)) {
-            $accNote = AccNote::create(['name' => $voucher->note]);
-        }
+        if (!empty($voucher->note)) $accNote = AccNote::create(['name' => $voucher->note]);
 
         // which account ID to assign
         $accHeadId = $accType === 'acc_head' ? $voucher->acc_head_id : 0;
@@ -291,9 +322,7 @@ class PaymentService
         $credit = !$isBankOrParty ? $voucher->amount : 0.00;
 
         // If it's a refund, swap debit and credit
-        if ($isRefund) {
-            [$debit, $credit] = [$credit, $debit];
-        }
+        if ($isRefund) [$debit, $credit] = [$credit, $debit];
 
         return AccLedger::create([
             'voucher_id'        => $voucher->id,
@@ -353,4 +382,6 @@ class PaymentService
     public function reservationRefundLedgersEntry(AccVoucher $voucher) {
         $this->reservationPaymentLedgersEntry($voucher);
     }
+
+
 }

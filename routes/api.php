@@ -111,6 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(\App\Http\Controllers\api\PaymentController::class)->group(function () {
         Route::post('make-a-payment', 'makeAPayment');
         Route::post('refund', 'refund');
+        Route::post('adjust-or-discount-sale/{saleRoom}', 'adjustOrDiscountSale');
     });
 
 });

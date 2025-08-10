@@ -110,4 +110,50 @@ class PaymentController extends Controller
             return response()->json($e->getMessage());
         }
     }
+
+    public function adjustOrDiscountSale(
+        Request $request,
+        SaleRoom $saleRoom,
+        PaymentService $paymentService
+    ) {
+
+        try {
+            DB::beginTransaction();
+            $validatedData = $request->validate([
+                'amount'   => 'required|numeric',
+                'note'     => 'nullable|string|max:500',
+                'action'   => 'required|in:adjustment,discount',
+                'staff_id' => 'numeric|exists:users,id',
+            ]);
+
+            $voucher = $paymentService->insertAdjustOrDiscountSaleVoucher(
+                $saleRoom->id,
+                $validatedData['action'],
+                $validatedData['note'] ?? null,
+                $validatedData['amount'],
+                $validatedData['staff_id'],
+            );
+
+            $paymentService->insertAdjustOrDiscountCashbookEntries($voucher, 'acc_head');
+            $paymentService->insertAdjustOrDiscountCashbookEntries($voucher, 'sale');
+
+            $paymentService->ledgerEntry($voucher, 'sale', 'acc_head');
+            $paymentService->ledgerEntry($voucher, 'general', 'acc_head');
+
+            $saleRoom->discount_note    = $voucher->note;
+            $saleRoom->adjusted_amount  = $voucher->amount;
+            $saleRoom->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'processed successfully.',
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

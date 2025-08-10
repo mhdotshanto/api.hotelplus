@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool|mixed $is_confirmed
  * @property mixed $code
  * @property mixed|string $status
+ * @property mixed $adjusted_amount
+ * @property mixed $discount_note
  */
 class SaleRoom extends Model
 {
