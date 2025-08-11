@@ -32,7 +32,11 @@ class AccVoucher extends Model
 
         static::creating(function ($model) {
             if (empty($model->receipt_ref)) {
-                $model->receipt_ref = self::generateReceiptRef();
+                if ($model->type === 'payment') {
+                    $model->receipt_ref = self::generateReceiptRef();
+                } else {
+                    $model->receipt_ref = 'N/A';
+                }
             }
         });
     }

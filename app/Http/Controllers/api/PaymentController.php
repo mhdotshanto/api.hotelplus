@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Enums\AccVoucherType;
 use App\Http\Controllers\Controller;
 use App\Models\SaleRoom;
 use App\Services\PaymentService;
@@ -35,15 +36,16 @@ class PaymentController extends Controller
             if(!$saleRecord->is_confirmed) $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRecord);
 
             //insert reservation payment voucher entry
-            $voucher = $paymentService->reservationPaymentVoucherEntry(
-                $saleRecord->id,
-                $validated['platform_id']??0,
-                $validated['party_id']??0,
-                $validated['staff_id']??0,
-                $validated['notes']??null,
-                $validated['reference_number'] ?? null,
-                $validated['payment_method'],
-                $validated['amount'],
+            $voucher = $paymentService->createVoucher(
+                voucherType: AccVoucherType::PAYMENT,
+                saleId: $saleRecord->id,
+                amount: $validated['amount'],
+                bankId: $validated['platform_id']??0,
+                partyId: $validated['party_id']??0,
+                receiverId: $validated['staff_id']??0,
+                note: $validated['notes']??null,
+                referenceNumber: $validated['reference_number'] ?? null,
+                paymentMethod: $validated['payment_method'],
             );
 
             //insert reservation payment ledger entry
@@ -80,19 +82,20 @@ class PaymentController extends Controller
                 'notes'             => 'nullable|string',
                 'staff_id'          => 'nullable|numeric|exists:users,id',
             ]);
+
             if (in_array($validated['payment_method'], ['card', 'bank', 'bkash', 'nagad', 'rocket'])) $validated['payment_method'] = 'bank';
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
 
-            //insert reservation refund voucher entry
-            $voucher = $paymentService->reservationRefundVoucherEntry(
-                $saleRecord->id,
-                $validated['platform_id']??0,
-                $validated['party_id']??0,
-                $validated['staff_id']??0,
-                $validated['notes']??null,
-                $validated['reference_number'] ?? null,
-                $validated['payment_method'],
-                $validated['amount'],
+            $voucher = $paymentService->createVoucher(
+                voucherType: AccVoucherType::REFUND,
+                saleId: $saleRecord->id,
+                amount: $validated['amount'],
+                bankId: $validated['platform_id']??0,
+                partyId: $validated['party_id']??0,
+                receiverId: $validated['staff_id']??0,
+                note: $validated['notes']??null,
+                referenceNumber: $validated['reference_number']??null,
+                paymentMethod: $validated['payment_method']
             );
 
             //insert reservation refund ledger entry
@@ -126,26 +129,22 @@ class PaymentController extends Controller
                 'staff_id' => 'numeric|exists:users,id',
             ]);
 
-            $voucher = $paymentService->insertAdjustOrDiscountSaleVoucher(
-                $saleRoom->id,
-                $validatedData['action'],
-                $validatedData['note'] ?? null,
-                $validatedData['amount'],
-                $validatedData['staff_id'],
+            $voucher = $paymentService->createVoucher(
+                voucherType: $validatedData['action'] == 'adjustment' ? AccVoucherType::ADJUSTMENT : AccVoucherType::DISCOUNT,
+                saleId: $saleRoom->id,
+                amount: $validatedData['amount'],
+                receiverId: $validatedData['staff_id'],
+                note: $validatedData['note'],
             );
 
-            $paymentService->insertAdjustOrDiscountCashbookEntries($voucher, 'acc_head');
-            $paymentService->insertAdjustOrDiscountCashbookEntries($voucher, 'sale');
-
-            $paymentService->ledgerEntry($voucher, 'sale', 'acc_head');
-            $paymentService->ledgerEntry($voucher, 'general', 'acc_head');
+            $paymentService->insertAdjustOrDiscountCashbookEntries($voucher);
+            $paymentService->insertAdjustOrDiscountLedgerEntries($voucher);
 
             $saleRoom->discount_note    = $voucher->note;
             $saleRoom->adjusted_amount  = $voucher->amount;
             $saleRoom->save();
 
             DB::commit();
-
             return response()->json([
                 'message' => 'processed successfully.',
             ], 200);
