@@ -26,21 +26,6 @@ class AccVoucher extends Model
 {
     protected $guarded = ['id'];
 
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($model) {
-            if (empty($model->receipt_ref)) {
-                if ($model->type === 'payment') {
-                    $model->receipt_ref = self::generateReceiptRef();
-                } else {
-                    $model->receipt_ref = 'N/A';
-                }
-            }
-        });
-    }
-
     public static function generateReceiptRef($minlength = 8, $prefix = 'MR-'): string
     {
         $receiptRef = $prefix . rand(111111, 999999);
@@ -48,5 +33,10 @@ class AccVoucher extends Model
             return self::generateReceiptRef($minlength, $prefix);
         }
         return $receiptRef;
+    }
+
+    public function ledgers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccLedger::class, 'voucher_id', 'id');
     }
 }

@@ -1261,7 +1261,6 @@ class SaleRoomController extends Controller
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
 
-//            return response()->json($validated['payment_details']['byCategoryDiscount']);
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
 
@@ -1277,11 +1276,22 @@ class SaleRoomController extends Controller
 
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
 
-            // === DELETE existing allocations and categories ===
+            //DELETE existing allocations and categories
             $sale->room_categories()->delete();
             $sale->sale_room_allocation()->delete();
 
-            // === UPDATE SaleRoom ===
+            if ($sale->price_sale != $priceSale) {
+                $voucher = AccVoucher::where('sale_room_id', $sale->id)->with('ledgers')->first();
+                if ($voucher) {
+                    AccLedger::where('voucher_id', $voucher->id)
+                        ->update([
+                            'debit'  => DB::raw("CASE WHEN debit > 0 THEN {$priceSale} ELSE debit END"),
+                            'credit' => DB::raw("CASE WHEN credit > 0 THEN {$priceSale} ELSE credit END"),
+                        ]);
+                }
+            }
+
+            //UPDATE SaleRoom
             $sale->update([
                 'guest_id' => $guest->id,
                 'guest_name_title' => $guest->name_address,
@@ -1566,8 +1576,8 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-        $query = SaleRoom::with(['sale_guest', 'sale_user'])
-            ->where('status', '!=', 'cancelled')
+//        with(['sale_guest', 'sale_user'])
+        $query = SaleRoom::where('status', '!=', 'cancelled')
             ->orderBy('id', 'desc');
 
         if ($request->filled('search')) {

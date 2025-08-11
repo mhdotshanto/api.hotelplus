@@ -38,14 +38,17 @@ class PaymentService
     ) : AccVoucher {
         $accHeadId = 0;
         $status = 'pending';
+        $receiptRef = 'N/A';
 
         if ($voucherType === AccVoucherType::BILL) {
             $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG);
             $status = 'N/A';
         }
 
-        if ($voucherType === AccVoucherType::PAYMENT)
+        if ($voucherType === AccVoucherType::PAYMENT){
             $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_PAYMENT_HEAD_SLUG);
+            $receiptRef = AccVoucher::generateReceiptRef();
+        }
 
         if ($voucherType === AccVoucherType::ADJUSTMENT) {
             $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_ADJUST_HEAD_SLUG);
@@ -63,6 +66,7 @@ class PaymentService
         }
 
         return AccVoucher::create([
+            "receipt_ref"      => $receiptRef,
             "acc_head_id"      => $accHeadId,
             "acc_bank_id"      => $bankId,
             "sale_room_id"     => $saleId,
