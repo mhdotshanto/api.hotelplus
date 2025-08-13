@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preference-options', 'getPreferenceOptions');
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
+        Route::get('/get');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
@@ -68,9 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('block-room', [RoomBlockController::class, 'blockRooms']);
     Route::post('block-all-rooms', [RoomBlockController::class, 'blockAll']);
 
-    Route::post('room-temp-block', [SaleRoomController::class, 'roomTempBlock']);
-    Route::delete('room-temp-details/{roomTempDetail}', [SaleRoomController::class, 'destroyRoomTempDetail']);
-
     Route::get('sale-create/{user}', [SaleRoomController::class, 'saleCreate']);
     Route::get('sales-info', [SaleRoomController::class, 'salesInfo']);
     Route::get('sales-info-exb', [SaleRoomController::class, 'salesInfoExb']);
@@ -92,6 +90,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::resource('config', ConfigController::class)->only(['index', 'update']);
 
     Route::controller(SaleRoomController::class)->group(function () {
+        //TO DO: move this two into RoomTempController
+        Route::post('room-temp-block', 'roomTempBlock');
+        Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
+
         Route::post('sale-room', 'saleRoom');
         Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
         Route::get('sale-by-code', 'saleRoomRecordByCode');
@@ -103,6 +105,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reservation-list', 'reservationList');
         Route::get('get-voucher-list', 'getVoucherList');
         Route::get('get-ledger-list', 'getLedgerListBySaleId');
+    });
+
+    Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
+        Route::get('current-users-temp-list', 'getCurrentUsersTempList');
+        Route::post('extend/{roomTemp}', 'extend');
+        Route::delete('destroy/{roomTemp}', 'destroy');
     });
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);

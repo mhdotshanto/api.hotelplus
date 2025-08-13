@@ -77,4 +77,6 @@ class MiscController extends Controller
             AccParty::select('id', 'name', 'contact_person', 'relation_id')->get()
         );
     }
+
+
 }

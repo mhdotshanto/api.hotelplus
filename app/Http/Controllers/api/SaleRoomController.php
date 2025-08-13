@@ -155,32 +155,26 @@ class SaleRoomController extends Controller
 
         DB::beginTransaction();
         try {
-            $room_temp_id = null;
+            $room_temp = null;
 
             if ($validated['temp_id']) {
                 $room_temp = RoomTemp::find($validated['temp_id']);
-                //                return response()->json($room_temp);
                 if (!$room_temp) {
                     abort(404, "Room temp not found");
                 }
                 $room_temp->touch();
-                $room_temp_id = $room_temp->id;
             } else {
                 $room_temp = RoomTemp::create([
                     'user_id' => $authenticatedUser->id,
                 ]);
-                $room_temp_id = $room_temp->id;
             }
-
-            // Optional: clear old details
-            //            RoomTempDetail::where('room_temp_id', $room_temp_id)->delete();
 
             $temp_details = [];
             $now = now();
 
             foreach ($validated['rooms'] as $room) {
                 $temp_details[] = [
-                    'room_temp_id' => $room_temp_id,
+                    'room_temp_id' => $room_temp->id,
                     'room_number_id' => $room['room_number_id'],
                     'room_category_id' => $room['room_category_id'],
                     'bed' => $room['bed'],
@@ -196,11 +190,7 @@ class SaleRoomController extends Controller
             }
 
             DB::commit();
-
-            return response()->json([
-                'temp_id' => $room_temp_id,
-                'temp_details' => $temp_details,
-            ]);
+            return response()->json(['room_temp' => $room_temp]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
@@ -209,7 +199,7 @@ class SaleRoomController extends Controller
 
     public function destroyRoomTempDetail(RoomTempDetail $roomTempDetail)
     {
-        //        return response()->json(["roomTempDetail" => $roomTempDetail]);
+        $roomTempDetail->room_temp->touch();
         $roomTempDetail->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }
