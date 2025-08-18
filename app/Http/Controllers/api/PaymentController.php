@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api;
 
 use App\Enums\AccVoucherType;
 use App\Http\Controllers\Controller;
+use App\Models\AccLedger;
 use App\Models\SaleRoom;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
@@ -154,5 +155,16 @@ class PaymentController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function getPaymentSummary($saleId) {
+            $totals = AccLedger::where('type', 'sale')
+                ->where('sale_room_id', $saleId)
+                ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
+                ->first();
+            return response()->json([
+                "total_paid" => (float) $totals->total_credit ?? 0,
+                "total_due"  => (float) ($totals->total_debit ?? 0) - $totals->total_credit,
+            ]);
     }
 }

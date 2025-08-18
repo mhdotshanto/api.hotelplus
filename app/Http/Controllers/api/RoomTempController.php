@@ -96,7 +96,6 @@ class RoomTempController extends Controller
         return response()->json(['message' => 'RoomTemp time extended successfully.',], 200);
     }
 
-
     /**
      * get current users tempt list
      */

@@ -8,54 +8,42 @@ use App\Models\Config;
 
 class ConfigController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $configs = Config::all()->map(function ($config) {
-            $config->suggestion = $config->suggestion
-                ? explode(',', $config->suggestion)
-                : [];
-
-            return $config;
-        });
-
-        return response()->json($configs);
+        return response()->json(Config::all());
     }
 
     // public function store(Request $request)
     // {
-    //     $validated = $request->validate([
-    //         'name' => 'required|max:40|unique:configs,name',
-    //         'value' => 'required',
-    //     ]);
-
-    //     Config::create([
-    //         'name' => $validated['name'],
-    //         'value' => $validated['value'],
-    //     ]);
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Config created successfully',
-    //     ]);
+        //$item = Config::findOrFail($config);
+        //
+        //$validated = $request->validate([
+        //'name' => 'required|max:40|unique:configs,name,' . $item->id,
+        //'value' => 'required',
+        //]);
+        //
+        //$item->update([
+        //'name' => $validated['name'],
+        //'value' => $validated['value'],
+        //]);
+        //
+        //return response()->json([
+        //'success' => true,
+        //'message' => 'Config updated successfully',
+        //]);
     // }
 
-    public function update(Request $request, $config)
+    public function update(Request $request, Config $config)
     {
-        $item = Config::findOrFail($config);
-
         $validated = $request->validate([
-            'name' => 'required|max:40|unique:configs,name,' . $item->id,
+            'name' => 'required|max:40|unique:configs,name,' . $config->id,
             'value' => 'required',
         ]);
-
-        $item->update([
+        $config->update([
             'name' => $validated['name'],
             'value' => $validated['value'],
         ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Config updated successfully',
-        ]);
+        return response()->json(['success' => true, 'message' => 'Config updated successfully',]);
     }
 }
+

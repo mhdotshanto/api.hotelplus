@@ -6,11 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Config extends Model
 {
-    protected $fillable = [
-        'name',
-        'slug',
-        'value',
-        'type',
-        'suggestion'
-    ];
+    protected $guarded = ['id'];
 }

@@ -39,7 +39,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preference-options', 'getPreferenceOptions');
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
-        Route::get('/get');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
@@ -87,7 +86,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('guest-create', [GuestController::class, 'store']);
     Route::get('guests-search', [GuestController::class, 'search']);
 
-    Route::resource('config', ConfigController::class)->only(['index', 'update']);
+//    Route::resource('config', ConfigController::class)->only(['index', 'update']);
+
+    Route::controller(ConfigController::class)->group(function () {
+        Route::get('config', 'index');
+        Route::post('config-update/{config}', 'update');
+    });
 
     Route::controller(SaleRoomController::class)->group(function () {
         //TO DO: move this two into RoomTempController
@@ -120,6 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('make-a-payment', 'makeAPayment');
         Route::post('refund', 'refund');
         Route::post('adjust-or-discount-sale/{saleRoom}', 'adjustOrDiscountSale');
+        Route::get('payments-summery/{saleId}', 'getPaymentSummary');
+
     });
 
 });
