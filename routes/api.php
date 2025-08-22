@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preference-options', 'getPreferenceOptions');
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
+        Route::get('/global-search-options', 'getGlobalSearchOptions');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
@@ -85,8 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('sales-store', [SaleRoomController::class, 'storeSale']);
     Route::post('guest-create', [GuestController::class, 'store']);
     Route::get('guests-search', [GuestController::class, 'search']);
-
-//    Route::resource('config', ConfigController::class)->only(['index', 'update']);
+    Route::get('guest-by-sale/{saleRoom}', [GuestController::class, 'guestBySale']);
 
     Route::controller(ConfigController::class)->group(function () {
         Route::get('config', 'index');
@@ -100,6 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('sale-room', 'saleRoom');
         Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
+        Route::post('edit-sale/{saleRoom}', 'editSale');
         Route::get('sale-by-code', 'saleRoomRecordByCode');
         Route::get('sale-record-for-success-message', 'getSaleRecordForSuccessMessage');
         Route::get('sale-by-id/{saleRoom}', 'saleRoomRecordById');
@@ -125,9 +126,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('refund', 'refund');
         Route::post('adjust-or-discount-sale/{saleRoom}', 'adjustOrDiscountSale');
         Route::get('payments-summery/{saleId}', 'getPaymentSummary');
-
+        Route::post('full-sale-cancellation/{saleRoom}', 'fullSaleCancellation');
+        Route::post('refund-and-cancel-reservation/{saleRoom}', 'refundAndCancelReservation');
     });
-
 });
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
 Route::get('print-reservation-detail/{id}', [SaleRoomController::class, 'printReservationDetail']);

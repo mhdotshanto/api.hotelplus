@@ -19,6 +19,7 @@ class PaymentService
     const SALE_ROOM_REFUND_HEAD_SLUG    = "sale-room-refund";
     const SALE_ROOM_ADJUST_HEAD_SLUG    = "sale-room-refund";
     const SALE_ROOM_DISCOUNT_HEAD_SLUG  = "sale-room-discount";
+    const SALE_ROOM_CANCELLATION_CHARGE_HEAD_SLUG  = "sale-room-cancellation-charge";
 
     public function getHeadIdBySlug(string $slug) {
         return AccHead::select('id')->where('slug', $slug)->first()->id;
@@ -65,6 +66,11 @@ class PaymentService
             $status = 'paid';
         }
 
+        if ($voucherType === AccVoucherType::CANCEL_RESERVATION) {
+            $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_CANCELLATION_CHARGE_HEAD_SLUG);
+            $status = 'paid';
+        }
+
         return AccVoucher::create([
             "receipt_ref"      => $receiptRef,
             "acc_head_id"      => $accHeadId,
@@ -86,11 +92,12 @@ class PaymentService
         AccVoucher $voucher,
         string $entryType,
         bool $isCash = false,
+        int|null $customAccHeadId = null,
     ): AccLedger {
         if (!in_array($entryType, ['debit', 'credit'], true)) throw new \InvalidArgumentException("Invalid entry type: {$entryType}");
 
         // which account ID to assign
-        $accHeadId = $accType === AccType::ACC_HEAD ? $voucher->acc_head_id : 0;
+        $accHeadId = $accType === AccType::ACC_HEAD ? ($customAccHeadId ?? $voucher->acc_head_id) : 0;
         $bankId    = $accType === AccType::BANK     ? $voucher->acc_bank_id : 0;
         $partyId   = $accType === AccType::PARTY    ? $voucher->acc_party_id : 0;
 
@@ -116,6 +123,7 @@ class PaymentService
         AccType $accType,
         AccVoucher $voucher,
         string $entryType = "debit",
+        int|null $customAccHeadId = null,
     ): AccLedger {
         if (!in_array($entryType, ['debit', 'credit'], true)) throw new \InvalidArgumentException("Invalid entry type: {$entryType}");
 
@@ -123,7 +131,7 @@ class PaymentService
         if (!empty($voucher->note)) $accNoteId = AccNote::create(['name' => $voucher->note])->id;
 
         // which account ID to assign
-        $accHeadId = $accType === AccType::ACC_HEAD ? $voucher->acc_head_id : 0;
+        $accHeadId = $accType === AccType::ACC_HEAD ? ( $customAccHeadId ?? $voucher->acc_head_id) : 0;
         $bankId    = $accType === AccType::BANK     ? $voucher->acc_bank_id : 0;
         $partyId   = $accType === AccType::PARTY    ? $voucher->acc_party_id : 0;
 
@@ -338,7 +346,6 @@ class PaymentService
     }
 
     //adjust or discount ledger entries
-
     public function insertAdjustOrDiscountLedgerEntries(AccVoucher $voucher) {
         //sale ledge entry credit (acc_head:sale)
         $this->ledgerEntry(
@@ -356,4 +363,77 @@ class PaymentService
             entryType: 'credit'
         );
     }
+
+    //cancel reservation cashbook ledger entries
+    public function cancelReservationCashbookEntries(AccVoucher $voucher) {
+
+        //credit side entry(accType:ACC_HEAD)(ACC_HEAD:Room Sale)
+        $this->insertCashbookEntry(
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+            entryType: 'credit',
+            customAccHeadId: $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)
+        );
+
+        //debit side entry (accType:ACC_HEAD)(ACC_HEAD:Room Sale Cancellation Charge)
+        $this->insertCashbookEntry(
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+            entryType: 'debit',
+        );
+
+        //debit side entry(accType:Sale)(ACC_HEAD:Room Sale)
+        $this->insertCashbookEntry(
+            accType: AccType::SALE,
+            voucher: $voucher,
+            entryType: 'debit',
+        );
+
+        //debit side entry(accType:Sale)(ACC_HEAD:Room Sale)
+        $this->insertCashbookEntry(
+            accType: AccType::SALE,
+            voucher: $voucher,
+            entryType: 'credit',
+        );
+
+    }
+
+    //cancel reservation ledger entries
+    public function cancelReservationLedgerEntries(AccVoucher $voucher)
+    {
+        //sale ledger entry (acc_type:sale) credit side
+        $this->ledgerEntry(
+            ledgerType: LedgerType::SALE,
+            accType: AccType::SALE,
+            voucher: $voucher,
+            entryType: "credit"
+        );
+
+        //sale ledger entry (acc_type:sale) debit side
+        $this->ledgerEntry(
+            ledgerType: LedgerType::SALE,
+            accType: AccType::SALE,
+            voucher: $voucher,
+            entryType: "debit"
+        );
+
+
+        //general ledger entry (acc_type:ACC_HEAD) credit side
+        $this->ledgerEntry(
+            ledgerType: LedgerType::GENERAL,
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+            entryType: "credit",
+            customAccHeadId:  $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)
+        );
+
+        //general ledger entry (acc_type:ACC_HEAD) debit side
+        $this->ledgerEntry(
+            ledgerType: LedgerType::GENERAL,
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+            entryType: "debit",
+        );
+    }
+
 }

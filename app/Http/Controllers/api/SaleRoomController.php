@@ -1430,7 +1430,6 @@ class SaleRoomController extends Controller
     public function getSaleRecordForSuccessMessage(Request $request)
     {
         $saleRoom = SaleRoom::where('code', $request->get('code'))
-            ->select('id', 'code', 'status')
             ->firstOrFail();
         return response()->json($saleRoom);
     }
@@ -1566,9 +1565,8 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-//        with(['sale_guest', 'sale_user'])
-        $query = SaleRoom::where('status', '!=', 'cancelled')
-            ->orderBy('id', 'desc');
+//        with(['sale_guest', 'sale_user']) where('status', '!=', 'cancelled')->
+        $query = SaleRoom::orderBy('id', 'desc');
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -1608,5 +1606,54 @@ class SaleRoomController extends Controller
                 ->with('head')
                 ->get()
         );
+    }
+
+    public function editSale(SaleRoom $saleRoom)
+    {
+        try {
+            DB::beginTransaction();
+                $temp = RoomTemp::where('sale_id', $saleRoom->id)->first();
+
+            if ($temp) {
+                if ($temp->updated_at < Carbon::now()->subHour(1)) {
+                    $temp->delete();
+                    $temp->details()->delete();
+                    $temp = false;
+                }
+            }
+
+            if (!$temp) {
+                $temp = RoomTemp::create([
+                    'sale_id' => $saleRoom->id,
+                    'user_id' => $saleRoom->user_id,
+                    'guest_id' => $saleRoom->guest_id,
+                    'type' => 'sales',
+                ]);
+                $details = $saleRoom->sale_room_allocation->map(function ($allocation) {
+                    return [
+                        'room_number_id' => $allocation->room_number_id,
+                        'room_category_id' => $allocation->room_category_id,
+                        'room_name_id' => $allocation->room_name_id,
+                        'bed'   => $allocation->bed,
+                        'date' => $allocation->date,
+                        'has_xb' => $allocation->is_xb,
+                    ];
+                })->toArray();
+                $temp->details()->createMany($details);
+            }
+
+            $dates = collect($saleRoom->sale_room_allocation)->pluck('date')->sort()->values();
+            DB::commit();
+            return response()->json([
+                'sale_id' => $saleRoom->id,
+                'temp_id' => $temp->id,
+                'date_from' => $dates->first(),
+                'date_to' => $dates->last(),
+                'guest' => $saleRoom->sale_guest
+            ]);
+        }catch (Exception $e) {
+            DB::rollBack();
+            return response()->json($e->getMessage());
+        }
     }
 }

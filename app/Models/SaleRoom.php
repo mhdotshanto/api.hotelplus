@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed|string $status
  * @property mixed $adjusted_amount
  * @property mixed $discount_note
+ * @property mixed $user_id
+ * @property mixed $guest_id
  */
 class SaleRoom extends Model
 {

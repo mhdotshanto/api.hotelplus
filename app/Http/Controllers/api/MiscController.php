@@ -10,6 +10,7 @@ use App\Models\Preference;
 use App\Models\RoomCategory;
 use App\Models\RoomFloor;
 use App\Models\RoomName;
+use App\Models\SaleRoom;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -76,6 +77,44 @@ class MiscController extends Controller
         return response()->json(
             AccParty::select('id', 'name', 'contact_person', 'relation_id')->get()
         );
+    }
+
+    public function getGlobalSearchOptions(Request $request)
+    {
+        $searchTerm = $request->get('searchTerm');
+
+        $options = SaleRoom::query()
+            ->when($searchTerm, function ($query, $searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('code', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_name_first', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_name_last', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_mobile', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_mobile_emergency', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_email', 'like', "%{$searchTerm}%")
+                        ->orWhere('guest_company', 'like', "%{$searchTerm}%")
+                        ->orWhere('date_checkin', 'like', "%{$searchTerm}%")
+                        ->orWhere('date_checkout', 'like', "%{$searchTerm}%");
+                });
+            })
+            ->limit(5)
+            ->get([
+                'id',
+                'code',
+                'guest_name_title',
+                'guest_name_first',
+                'guest_name_last',
+                'guest_mobile',
+                'guest_email',
+                'guest_company',
+                'date_checkin',
+                'date_checkout',
+                'status',
+                'rooms',
+                'master_room'
+            ]);
+
+        return response()->json($options);
     }
 
 
