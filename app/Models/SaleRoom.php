@@ -4,6 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property mixed $id
+ * @property mixed $price_sale
+ * @property bool|mixed $is_confirmed
+ * @property mixed $code
+ * @property mixed|string $status
+ * @property mixed $adjusted_amount
+ * @property mixed $discount_note
+ * @property mixed $user_id
+ * @property mixed $guest_id
+ */
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
@@ -67,7 +78,7 @@ class SaleRoom extends Model
     {
         return $this->hasOne(User::class, 'id', 'user_id');
     }
-    
+
     public function sale_agent()
     {
         return $this->hasOne(User::class, 'id', 'ref_id');

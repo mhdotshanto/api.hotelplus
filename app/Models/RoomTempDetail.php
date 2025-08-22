@@ -16,7 +16,7 @@ class RoomTempDetail extends Model
     public function room()
     {
         return $this->belongsTo(RoomNumber::class,'room_number_id');
-    }   
+    }
 
     public function roomName()
     {
@@ -32,3 +32,4 @@ class RoomTempDetail extends Model
         return $this->hasOne(RoomTempDetailXb::class, 'room_temp_id', 'room_temp_id');
     }
 }
+

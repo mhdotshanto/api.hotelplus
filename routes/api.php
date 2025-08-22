@@ -37,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/country-options', 'getCountryOptions');
         Route::get('/reference-options', 'getReferenceOptions');
         Route::get('/preference-options', 'getPreferenceOptions');
+        Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
+        Route::get('/party-options', 'getPartyOptions');
+        Route::get('/global-search-options', 'getGlobalSearchOptions');
     });
 
     Route::get("/user-list", [UserController::class, 'index']);
@@ -66,9 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('block-room', [RoomBlockController::class, 'blockRooms']);
     Route::post('block-all-rooms', [RoomBlockController::class, 'blockAll']);
 
-    Route::post('room-temp-block', [SaleRoomController::class, 'roomTempBlock']);
-    Route::delete('room-temp-details/{roomTempDetail}', [SaleRoomController::class, 'destroyRoomTempDetail']);
-
     Route::get('sale-create/{user}', [SaleRoomController::class, 'saleCreate']);
     Route::get('sales-info', [SaleRoomController::class, 'salesInfo']);
     Route::get('sales-info-exb', [SaleRoomController::class, 'salesInfoExb']);
@@ -86,23 +86,51 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('sales-store', [SaleRoomController::class, 'storeSale']);
     Route::post('guest-create', [GuestController::class, 'store']);
     Route::get('guests-search', [GuestController::class, 'search']);
+    Route::get('guest-by-sale/{saleRoom}', [GuestController::class, 'guestBySale']);
 
-    Route::resource('config', ConfigController::class)->only(['index', 'update']);
+    Route::controller(ConfigController::class)->group(function () {
+        Route::get('config', 'index');
+        Route::post('config-update/{config}', 'update');
+    });
 
-    Route::post('sale-room', [SaleRoomController::class, 'saleRoom']);
-    Route::post('update-sale-room/{saleId}', [SaleRoomController::class, 'updateSaleRoom']);
+    Route::controller(SaleRoomController::class)->group(function () {
+        //TO DO: move this two into RoomTempController
+        Route::post('room-temp-block', 'roomTempBlock');
+        Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
 
-    Route::get('sale-by-code', [SaleRoomController::class, 'saleRoomRecordByCode']);
-    Route::get('sale-record-for-success-message', [SaleRoomController::class, 'getSaleRecordForSuccessMessage']);
-    Route::get('sale-by-id/{saleRoom}', [SaleRoomController::class, 'saleRoomRecordById']);
+        Route::post('sale-room', 'saleRoom');
+        Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
+        Route::post('edit-sale/{saleRoom}', 'editSale');
+        Route::get('sale-by-code', 'saleRoomRecordByCode');
+        Route::get('sale-record-for-success-message', 'getSaleRecordForSuccessMessage');
+        Route::get('sale-by-id/{saleRoom}', 'saleRoomRecordById');
+        Route::get('sale-record-for-payment', 'getSaleRecordForPayment');
+        Route::post('checkin/{saleRoom}', 'updateToCheckIn');
+        Route::post('checkout/{saleRoom}', 'updateToCheckOut');
+        Route::get('reservation-list', 'reservationList');
+        Route::get('get-voucher-list', 'getVoucherList');
+        Route::get('get-ledger-list', 'getLedgerListBySaleId');
+    });
 
-    Route::post('checkin/{saleRoom}', [SaleRoomController::class, 'updateToCheckIn']);
-    Route::get('reservation-list', [SaleRoomController::class, 'reservationList']);
+    Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
+        Route::get('current-users-temp-list', 'getCurrentUsersTempList');
+        Route::post('extend/{roomTemp}', 'extend');
+        Route::delete('destroy/{roomTemp}', 'destroy');
+    });
+
+    Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
+    Route::apiResource('acc-parties', \App\Http\Controllers\api\AccPartyController::class);
+
+    Route::controller(\App\Http\Controllers\api\PaymentController::class)->group(function () {
+        Route::post('make-a-payment', 'makeAPayment');
+        Route::post('refund', 'refund');
+        Route::post('adjust-or-discount-sale/{saleRoom}', 'adjustOrDiscountSale');
+        Route::get('payments-summery/{saleId}', 'getPaymentSummary');
+        Route::post('full-sale-cancellation/{saleRoom}', 'fullSaleCancellation');
+        Route::post('refund-and-cancel-reservation/{saleRoom}', 'refundAndCancelReservation');
+    });
 });
-
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
-
-
-
-
 Route::get('print-reservation-detail/{id}', [SaleRoomController::class, 'printReservationDetail']);
+
+
