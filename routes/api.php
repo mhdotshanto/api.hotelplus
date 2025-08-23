@@ -97,7 +97,6 @@ Route::middleware('auth:sanctum')->group(function () {
         //TO DO: move this two into RoomTempController
         Route::post('room-temp-block', 'roomTempBlock');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
-
         Route::post('sale-room', 'saleRoom');
         Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
         Route::post('edit-sale/{saleRoom}', 'editSale');
@@ -110,6 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reservation-list', 'reservationList');
         Route::get('get-voucher-list', 'getVoucherList');
         Route::get('get-ledger-list', 'getLedgerListBySaleId');
+        Route::post('discard-changes/{sale_id}', 'discardChanges');
     });
 
     Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){

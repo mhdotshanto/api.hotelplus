@@ -156,18 +156,14 @@ class SaleRoomController extends Controller
         DB::beginTransaction();
         try {
             $room_temp = null;
-
             if ($validated['temp_id']) {
                 $room_temp = RoomTemp::find($validated['temp_id']);
-                if (!$room_temp) {
-                    abort(404, "Room temp not found");
-                }
+                if (!$room_temp) abort(404, "Room temp not found");
                 $room_temp->touch();
-            } else {
-                $room_temp = RoomTemp::create([
-                    'user_id' => $authenticatedUser->id,
-                ]);
+            } else{
+                $room_temp = RoomTemp::create(['user_id' => $authenticatedUser->id]);
             }
+
 
             $temp_details = [];
             $now = now();
@@ -185,9 +181,7 @@ class SaleRoomController extends Controller
                 ];
             }
 
-            if (!empty($temp_details)) {
-                RoomTempDetail::insert($temp_details);
-            }
+            if (!empty($temp_details)) RoomTempDetail::insert($temp_details);
 
             DB::commit();
             return response()->json(['room_temp' => $room_temp]);
@@ -1654,6 +1648,38 @@ class SaleRoomController extends Controller
         }catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
+        }
+    }
+
+    public function discardChanges($sale_id)
+    {
+        DB::beginTransaction();
+        try {
+            // Fetch the RoomTemp record
+            $roomTemp = RoomTemp::where('sale_id', $sale_id)->firstOrFail();
+            $roomTemp->details()->delete();
+
+            $roomAllocations = SaleRoomAllocation::where('room_sale_id', $sale_id)->get();
+//            return response()->json($roomAllocations);
+            $details = $roomAllocations->map(function ($allocation) {
+                return [
+                    'room_number_id' => $allocation->room_number_id,
+                    'room_category_id' => $allocation->room_category_id,
+                    'room_name_id' => $allocation->room_name_id,
+                    'bed' => $allocation->bed,
+                    'date' => $allocation->date,
+                    'has_xb' => $allocation->is_xb,
+                ];
+            })->toArray();
+
+            // Create new details
+            $roomTemp->details()->createMany($details);
+
+            DB::commit();
+            return response()->json("discarded");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return  response()->json($e->getMessage());
         }
     }
 }
