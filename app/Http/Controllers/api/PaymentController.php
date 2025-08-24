@@ -164,20 +164,27 @@ class PaymentController extends Controller
         try {
             DB::beginTransaction();
             $validatedData = $request->validate([
-                'cancellation_charge'   => 'required|numeric',
+                'cancellation_charge'   => 'required|numeric|min:0',
+                'note'                  => 'nullable|string|max:200',
             ]);
 
-            //cancellation voucher
-            $voucher = $paymentService->createVoucher(
-                voucherType: AccVoucherType::CANCEL_RESERVATION,
-                saleId: $saleRoom->id,
-                amount: $validatedData['cancellation_charge'],
-            );
+//            return response()->json($validatedData);
 
-            //insert cancel reservation cashbook entries
-            $paymentService->cancelReservationCashbookEntries($voucher);
-            //insert cancel reservation ledger entries
-            $paymentService->cancelReservationLedgerEntries($voucher);
+            if (!is_null($validatedData['note']) && !$saleRoom->note) {$saleRoom->note()->create(['note' => $validatedData['note'],]);}
+
+            if ($validatedData['cancellation_charge'] > 0) {
+                //cancellation voucher
+                $voucher = $paymentService->createVoucher(
+                    voucherType: AccVoucherType::CANCEL_RESERVATION,
+                    saleId: $saleRoom->id,
+                    amount: $validatedData['cancellation_charge'],
+                );
+
+                //insert cancel reservation cashbook entries
+                $paymentService->cancelReservationCashbookEntries($voucher);
+                //insert cancel reservation ledger entries
+                $paymentService->cancelReservationLedgerEntries($voucher);
+            }
 
             $saleRoom->status = "cancelled";
             $saleRoom->save();

@@ -1560,7 +1560,7 @@ class SaleRoomController extends Controller
     public function reservationList(Request $request)
     {
 //        with(['sale_guest', 'sale_user']) where('status', '!=', 'cancelled')->
-        $query = SaleRoom::orderBy('id', 'desc');
+        $query = SaleRoom::with('note')->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
             $search = $request->input('search');

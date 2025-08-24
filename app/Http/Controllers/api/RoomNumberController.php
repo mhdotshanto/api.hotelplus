@@ -283,7 +283,9 @@ class RoomNumberController extends Controller
             },
             'floor',
             'room_block_details' => function ($roomBlockQuery) use ($date_start, $date_end) {
-                $roomBlockQuery->with('roomBlock');
+                $roomBlockQuery->with('roomBlock', function ($roomBlockQuery) {
+                    $roomBlockQuery->with('user');
+                });
                 if ($date_start && $date_end) {
                     $roomBlockQuery->whereBetween('date', [$date_start, $date_end]);
                 }
