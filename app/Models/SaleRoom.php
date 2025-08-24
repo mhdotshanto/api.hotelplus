@@ -83,4 +83,9 @@ class SaleRoom extends Model
     {
         return $this->hasOne(User::class, 'id', 'ref_id');
     }
+
+    public function note()
+    {
+        return $this->hasOne(SaleCancellationNotes::class, 'sale_id', 'id');
+    }
 }

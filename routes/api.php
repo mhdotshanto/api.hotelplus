@@ -16,15 +16,14 @@ use App\Http\Controllers\api\SaleRoomController;
 use App\Http\Controllers\api\GuestController;
 use App\Http\Controllers\api\ConfigController;
 
-//test routs
 Route::get('test-api', function () {
     return response()->json('working.....');
 });
 
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'me']);
 
