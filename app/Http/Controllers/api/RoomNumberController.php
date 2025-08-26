@@ -18,7 +18,6 @@ class RoomNumberController extends Controller
 {
     public function index(Request $request)
     {
-//        return response()->json($request->get('page'));
         $query = RoomNumber::with([
             'roomName' => function ($roomNameQuery) {
                 $roomNameQuery->with('category');

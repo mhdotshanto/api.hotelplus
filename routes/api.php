@@ -25,10 +25,12 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/update-password', [AuthController::class, 'updatePassword']);
     Route::get('/user', [AuthController::class, 'me']);
 
     //Misc api call
     Route::prefix('misc')->controller(\App\Http\Controllers\api\MiscController::class)->group(function () {
+        Route::get('/pre-open-application-event', 'preOpenApplicationEvent');
         Route::get('/insert-room-select-options', 'getInsertRoomSelectOption');
         Route::get('/category-options', 'getCategoryOptions');
         Route::get('/room-name-options', 'getRoomNameOptions');
@@ -40,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/party-options', 'getPartyOptions');
         Route::get('/global-search-options', 'getGlobalSearchOptions');
     });
+
+    Route::apiResource('user', UserController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::post('update-users-password/{user}', [UserController::class, 'updateUsersPassword']);
 
     Route::get("/user-list", [UserController::class, 'index']);
     Route::get("/user-get/{id}", [UserController::class, 'getUser']);
@@ -93,7 +98,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::controller(SaleRoomController::class)->group(function () {
-        //TO DO: move this two into RoomTempController
         Route::post('room-temp-block', 'roomTempBlock');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
         Route::post('sale-room', 'saleRoom');

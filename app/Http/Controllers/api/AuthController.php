@@ -7,12 +7,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-//        return response()->json("hited");
         $request->validate([
             'name' => 'required|string|max:30',
             'user_name' => 'required|string|max:30|unique:users',
@@ -25,9 +25,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|confirmed',
             'is_ref' => 'nullable',
         ]);
-
         $role = $request->type === 'agent' ? 'agent' : $request->role;
-
         $user = User::create([
             'name' => $request->name,
             'user_name' => $request->user_name,
@@ -79,6 +77,23 @@ class AuthController extends Controller
     {
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        try {
+            $authenticatedUser = auth()->user();
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
+
+            $validated = $request->validate(['password' => 'required|string|min:8|confirmed']);
+
+            $authenticatedUser->password = Hash::make($validated['password']);
+            $authenticatedUser->save();
+
+            return response()->json(['success' => true, 'message' => 'Password updated successfully.'], 200);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
     }
 
     public function me(Request $request)

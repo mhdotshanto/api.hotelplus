@@ -5,17 +5,56 @@ namespace App\Http\Controllers\api;
 use App\Http\Controllers\Controller;
 use App\Models\AccBank;
 use App\Models\AccParty;
+use App\Models\Config;
 use App\Models\Country;
 use App\Models\Preference;
 use App\Models\RoomCategory;
 use App\Models\RoomFloor;
 use App\Models\RoomName;
+use App\Models\RoomTemp;
 use App\Models\SaleRoom;
 use App\Models\User;
 use Illuminate\Http\Request;
 
 class MiscController extends Controller
 {
+    public function clearTempRoomSession() {
+        try {
+            $configs = Config::whereIn('slug', ['temp-session-duration', 'temp-session-modal-duration'])
+                ->get()
+                ->keyBy('slug');
+
+            $tempSessionDuration = (int) ($configs['temp-session-duration']->value ?? 30);
+            $modalSessionDuration = (int) ($configs['temp-session-modal-duration']->value ?? 2);
+
+            $threshold = now()->subMinutes($tempSessionDuration + $modalSessionDuration);
+            $exists = RoomTemp::where('created_at', '<', $threshold)->exists();
+
+            if ($exists) {
+                RoomTemp::where('created_at', '<', $threshold)
+                    ->chunkById(100, function ($records) {
+                        foreach ($records as $record) {
+                            $record->details()->delete();
+                            $record->delete();
+                        }
+                    });
+                return "Old temp sessions cleared.";
+            }
+
+            return "No old temp sessions found.";
+        } catch (\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function preOpenApplicationEvent()
+    {
+        return response()->json([
+            'authenticated' => auth()->check(),
+            'clear_session' => $this->clearTempRoomSession()
+        ], 200);
+    }
+
     public function getInsertRoomSelectOption() {
         $data = [];
         $data['categories'] = RoomCategory::all();
@@ -113,9 +152,7 @@ class MiscController extends Controller
                 'rooms',
                 'master_room'
             ]);
-
         return response()->json($options);
     }
-
 
 }
