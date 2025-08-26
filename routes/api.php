@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Misc api call
     Route::prefix('misc')->controller(\App\Http\Controllers\api\MiscController::class)->group(function () {
+        Route::get('/pre-open-application-event', 'preOpenApplicationEvent');
         Route::get('/insert-room-select-options', 'getInsertRoomSelectOption');
         Route::get('/category-options', 'getCategoryOptions');
         Route::get('/room-name-options', 'getRoomNameOptions');
@@ -40,7 +41,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
         Route::get('/global-search-options', 'getGlobalSearchOptions');
-//        Route::get('/users', 'getUsers');
     });
 
     Route::apiResource('user', UserController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -98,7 +98,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::controller(SaleRoomController::class)->group(function () {
-        //TO DO: move this two into RoomTempController
         Route::post('room-temp-block', 'roomTempBlock');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
         Route::post('sale-room', 'saleRoom');
