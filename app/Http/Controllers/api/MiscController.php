@@ -113,9 +113,7 @@ class MiscController extends Controller
                 'rooms',
                 'master_room'
             ]);
-
         return response()->json($options);
     }
-
 
 }

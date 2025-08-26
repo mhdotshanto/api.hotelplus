@@ -3,104 +3,98 @@
 namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    /**
+     * Display a listing of users.
+     */
     public function index(Request $request)
     {
         $query = User::query();
-
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'LIKE', '%' . $request->search . '%')
-                  ->orWhere('user_name', 'LIKE', '%' . $request->search . '%')
-                  ->orWhere('phone', 'LIKE', '%' . $request->search . '%')
-                  ->orWhere('email', 'LIKE', '%' . $request->search . '%');
+                $q->where('name', 'LIKE', '%' . $request->search . '%');
             });
         }
+        $users = $query->orderBy('id', 'ASC')
+            ->paginate($request->get('per_page'));
 
-        $data = $query->paginate(10);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        return response()->json($users);
     }
 
-    public function getUser($id)
-    {
-        $user = User::find($id);
-
-        if ($user) {
-            return response()->json([
-                'success' => true,
-                'data' => $user,
-            ], 200);
-        }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'User not found',
-        ], 404);
-    }
-
-    public function update(Request $request, User $user)
+    /**
+     * Store a newly created user.
+     */
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:30',
-            'user_name' => [
-                'required',
-                'max:30', 
-                Rule::unique('users')->ignore($user->id)
-            ],
-            'role' => 'required',
-            'type' => 'required',
-            'email' => [
-                'required',
-                'email', 
-                'max:255', 
-                Rule::unique('users')->ignore($user->id)
-            ],
-            'phone' => [
-                'required', 
-                'max:20', 
-                Rule::unique('users')->ignore($user->id)
-            ],
-            'designation' => 'required|max:100',
-        ]);
-
-        $role = $request->type === 'agent' ? 'agent' : $validated['role'];
-
-        $user->update([
-            'name' => $validated['name'],
-            'user_name' => $validated['user_name'],
-            'role' => $role,
-            'type' => $validated['type'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'designation' => $validated['designation'],
-        ]);
-
-        return response()->json([
-            'message' => 'User updated successfully!',
-            'user' => $user
-        ], 200);
-    }
-
-    public function changeStatus(Request $request, User $user)
-    {
-        $validated = $request->validate([
+            'user_name' => 'required|string|max:30|unique:users,user_name',
+            'role' => 'required|in:super_admin,admin,developer,agent',
+            'type' => 'required|in:agent,user',
             'status' => 'required|in:active,suspended,closed',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string|unique:users,phone',
+            'designation' => 'nullable|string|max:100',
+            'password' => 'required|string|min:8|confirmed',
+            'is_ref' => 'nullable|boolean',
+            'email_verified_at' => 'nullable|date',
         ]);
 
-        $user->update(['status' => $validated['status']]);
+        $validated['password'] = Hash::make($validated['password']);
+        User::create($validated);
 
-        return response()->json([
-            'message' => 'User status changed successfully!',
-            'user' => $user
-        ], 200);
+        return response()->json(['success' => true], 201);
     }
+
+    /**
+     * Display the specified user.
+     */
+    public function show($id)
+    {
+        //
+    }
+
+    /**
+     * Update the specified user.
+     */
+    public function update(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:30',
+            'user_name' => 'required|string|max:30|unique:users,user_name,' . $id,
+            'role' => 'required|in:super_admin,admin,developer,agent',
+            'type' => 'required|in:agent,user',
+            'status' => 'required|in:active,suspended,closed',
+            'email' => 'required|email|unique:users,email,' . $id,
+            'phone' => 'required|string|unique:users,phone,' . $id,
+            'designation' => 'nullable|string|max:100',
+            'is_ref' => 'nullable|boolean',
+            'email_verified_at' => 'nullable|date',
+        ]);
+        $user->update($validated);
+        return response()->json(['success' => true], 200);
+    }
+
+    /**
+     * Remove the specified user.
+     */
+    public function destroy($id)
+    {
+        //
+    }
+
+    public function updateUsersPassword(Request $request, User $user)
+    {
+        $validated = $request->validate(['password' => 'required|string|min:8|confirmed']);
+        $user->update(['password' => Hash::make($validated['password'])]);
+        return response()->json(['success' => true, 'message' => 'Password updated successfully'], 200);
+    }
+
 }

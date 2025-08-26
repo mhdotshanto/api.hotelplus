@@ -1559,7 +1559,6 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-//        with(['sale_guest', 'sale_user']) where('status', '!=', 'cancelled')->
         $query = SaleRoom::with('note')->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
@@ -1573,7 +1572,7 @@ class SaleRoomController extends Controller
             });
         }
 
-        $reservations = $query->paginate(10);
+        $reservations = $query->paginate($request->perPage);
 
         return response()->json($reservations);
     }

@@ -25,6 +25,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/update-password', [AuthController::class, 'updatePassword']);
     Route::get('/user', [AuthController::class, 'me']);
 
     //Misc api call
@@ -39,7 +40,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
         Route::get('/global-search-options', 'getGlobalSearchOptions');
+//        Route::get('/users', 'getUsers');
     });
+
+    Route::apiResource('user', UserController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::post('update-users-password/{user}', [UserController::class, 'updateUsersPassword']);
 
     Route::get("/user-list", [UserController::class, 'index']);
     Route::get("/user-get/{id}", [UserController::class, 'getUser']);
