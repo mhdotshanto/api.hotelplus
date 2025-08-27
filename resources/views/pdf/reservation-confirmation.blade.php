@@ -81,7 +81,8 @@
         @endif
         <tr>
             <td>Total Amount</td>
-            <td>{!! bdt_format($data['saleRoom']->price_net) !!}</td>
+            {{-- <td>{!! bdt_format($data['saleRoom']->price_net) !!}</td> --}}
+            <td>{!! bdt_format($data['totalAmount']) !!}</td>
         </tr>
 
         @if($data['saleRoom']->status == 'CANCELLED')
@@ -96,7 +97,7 @@
         </tr>
         <tr>
             <td>Amount Due</td>
-            <td>{!! bdt_format($data['saleRoom']->price_net) !!}</td>
+            <td>{!! bdt_format($data['totalDue']) !!}</td>
         </tr>
     </table>
     <table>

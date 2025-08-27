@@ -134,6 +134,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
-Route::get('print-reservation-detail/{id}', [SaleRoomController::class, 'printReservationDetail']);
+Route::get('print-reservation-detail', [SaleRoomController::class, 'printReservationDetail']);
 
 
