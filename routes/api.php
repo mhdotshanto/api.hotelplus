@@ -15,6 +15,7 @@ use App\Http\Controllers\api\RoomBlockController;
 use App\Http\Controllers\api\SaleRoomController;
 use App\Http\Controllers\api\GuestController;
 use App\Http\Controllers\api\ConfigController;
+use App\Http\Controllers\api\ReportController;
 
 Route::get('test-api', function () {
     return response()->json('working.....');
@@ -134,6 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
-Route::get('print-reservation-detail', [SaleRoomController::class, 'printReservationDetail']);
+Route::get('reservation', [ReportController::class, 'printReservationDetail']);
+Route::get('ledger', [ReportController::class, 'ledgerReport']);
 
 
