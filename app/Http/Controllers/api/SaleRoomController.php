@@ -1124,6 +1124,9 @@ class SaleRoomController extends Controller
 
             $validated = $request->validate($this->saleRoomRules());
 
+//            return response()->json($validated);
+//            return response()->json(Carbon::createFromFormat('h:i A', $validated['payment_details']['etd'])->format('H:i:s'));
+
             // Load related temp data with category
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
