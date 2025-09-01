@@ -137,5 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
 Route::get('reservation', [ReportController::class, 'printReservationDetail']);
 Route::get('ledger', [ReportController::class, 'ledgerReport']);
+Route::get('checkin', [ReportController::class, 'checkinReport']);
+Route::get('checkout', [ReportController::class, 'checkoutReport']);
 
 

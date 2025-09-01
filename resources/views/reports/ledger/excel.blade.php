@@ -1,6 +1,6 @@
 @extends('reports.layouts.excel.main')
 @section('content')
-<div class="fo-12 top-5">    
+<div class="fo-12 top-5">
     <div class="mt-3">
         <table class="table table-bordered border-primary">
         <tbody>

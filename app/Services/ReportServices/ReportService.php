@@ -267,4 +267,73 @@ class ReportService
         return $data;
    }
 
+   public function getCheckinData($params){    
+    $checkinData = SaleRoom::with([ 'sale_agent']);
+    if(isset($params['date_from'])){
+        $checkinData = $checkinData->where('date_checkin','>=',$params['date_from']);
+    }
+    
+    if(isset($params['date_to'])){
+        $checkinData = $checkinData->where('date_checkin','<=',$params['date_to']);
+    }
+   
+    if(isset($params['sales_by'])){
+        $checkinData = $checkinData->whereIn('ref_id',$params['sales_by']);
+    }
+    $checkinData = $checkinData->get();
+    $data_collection = collect($checkinData);
+    $total_rooms = $data_collection->sum('room_qty');
+    $total_gross_price = $data_collection->sum('price_gross');
+    $total_net_price = $data_collection->sum('price_net');
+    $sale_agents = $checkinData->pluck('sale_agent.name')   
+    ->unique()                   
+    ->implode(', ');
+  
+    return [
+            'from_date' => $params['date_from'] ? \Carbon\Carbon::parse($params['date_from'])->format('d/m/Y') : null,
+            'to_date'   => $params['date_to'] ? \Carbon\Carbon::parse($params['date_to'])->format('d/m/Y') : null,
+           'checkinData' => $checkinData,
+           'total_rooms' => $total_rooms,
+           'total_gross_price' => $total_gross_price,
+           'total_net_price' => $total_net_price,
+           'sale_agents' => $sale_agents,
+        ];
+    //return $checkinData;
+    //dd($checkinData);
+   }
+
+   public function getCheckoutData($params){    
+    $checkoutData = SaleRoom::with([ 'sale_agent']);
+    if(isset($params['date_from'])){
+        $checkoutData = $checkoutData->where('date_checkout','>=',$params['date_from']);
+    }
+    
+    if(isset($params['date_to'])){
+        $checkoutData = $checkoutData->where('date_checkout','<=',$params['date_to']);
+    }
+   
+    if(isset($params['sales_by'])){
+        $checkoutData = $checkoutData->whereIn('ref_id',$params['sales_by']);
+    }
+    $checkoutData = $checkoutData->get();
+    $data_collection = collect($checkoutData);
+    $total_rooms = $data_collection->sum('room_qty');
+    $total_gross_price = $data_collection->sum('price_gross');
+    $total_net_price = $data_collection->sum('price_net');
+    $sale_agents = $checkoutData->pluck('sale_agent.name')   
+    ->unique()                   
+    ->implode(', ');  
+    return [
+            'from_date' => $params['date_from'] ? \Carbon\Carbon::parse($params['date_from'])->format('d/m/Y') : null,
+            'to_date'   => $params['date_to'] ? \Carbon\Carbon::parse($params['date_to'])->format('d/m/Y') : null,
+           'checkoutData' => $checkoutData,
+           'total_rooms' => $total_rooms,
+           'total_gross_price' => $total_gross_price,
+           'total_net_price' => $total_net_price,
+           'sale_agents' => $sale_agents,
+        ];
+    //return $checkinData;
+    //dd($checkinData);
+   }
+
 }
