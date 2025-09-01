@@ -26,6 +26,9 @@ class SaleRoom extends Model
             if (empty($saleRoom->code)) {
                 $saleRoom->code = self::generateUniqueCode();
             }
+            if($saleRoom->code){
+                $saleRoom->token = encrypt($saleRoom->code);
+            }
         });
     }
 

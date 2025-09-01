@@ -35,10 +35,12 @@ class SaleRoomController extends Controller
 {
     use SaleRoomTrait;
     protected $mpdfService;
+    protected $paymentService;
 
-    public function __construct(MpdfService $mpdfService)
+    public function __construct(MpdfService $mpdfService, PaymentService $paymentService)
     {
         $this->mpdfService = $mpdfService;
+        $this->paymentService = $paymentService;
     }
 
     public function saleCreate(Request $request, User $user)
@@ -160,7 +162,7 @@ class SaleRoomController extends Controller
                 $room_temp = RoomTemp::find($validated['temp_id']);
                 if (!$room_temp) abort(404, "Room temp not found");
                 $room_temp->touch();
-            } else{
+            } else {
                 $room_temp = RoomTemp::create(['user_id' => $authenticatedUser->id]);
             }
 
@@ -1113,7 +1115,7 @@ class SaleRoomController extends Controller
         }
     }
 
-    public function saleRoom(Request $request, PaymentService $paymentService)
+    public function saleRoom(Request $request)
     {
         try {
             DB::beginTransaction();
@@ -1131,7 +1133,6 @@ class SaleRoomController extends Controller
                     }
                 ]);
             }])->findOrFail($validated['temp_id']);
-
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
@@ -1179,7 +1180,7 @@ class SaleRoomController extends Controller
                 $config
             );
 
-            if ($sale->status == 'checkin') $paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
+            if ($sale->status == 'checkin') $this->paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
 
             $sale->preferences()->sync($preferences);
             $this->createSaleCategories(
@@ -1199,7 +1200,7 @@ class SaleRoomController extends Controller
             $temp->delete();
             DB::commit();
 
-            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code, 'token' => $sale->token]);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
@@ -1434,11 +1435,11 @@ class SaleRoomController extends Controller
             DB::beginTransaction();
             $saleRoom->status = 'checkin';
             $saleRoom->save();
-//            if (!$saleRoom->is_confirmed)
-                $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
+            //            if (!$saleRoom->is_confirmed)
+            $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
             DB::commit();
             return response()->json(['message' => 'SaleRoom status updated to pending.']);
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'message' => 'Failed to update SaleRoom. Please try again.',
@@ -1454,107 +1455,12 @@ class SaleRoomController extends Controller
             $saleRoom->save();
             DB::commit();
             return response()->json(['message' => 'SaleRoom status updated to pending.']);
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'message' => 'Failed to update SaleRoom. Please try again.',
                 'error' => $e->getMessage()
             ], 500);
-        }
-    }
-
-    public function printReservationDetail($id)
-    {
-        $data = SaleRoom::with([
-            'sale_room_allocation' => function ($query) {
-                $query->with(['room_name', 'room']);
-            },
-            'sale_guest',
-            'sale_user',
-            'sale_agent',
-            'room_categories' => function ($query) {
-                $query->with('category');
-            }
-        ])->findOrFail($id);
-
-        $categorySummaryCollection = collect($data->room_categories)
-            ->where('is_xb', 0)
-            ->groupBy('category_id')
-            ->map(function ($items, $categoryId) {
-                $totalQty = $items->sum('qty');
-                $first = $items->first();
-                $rateSale = (float) ($first->rate_sale ?? 0);
-                $categoryName = $first->category->name ?? 'Unknown';
-
-                $amount = $rateSale * $totalQty;
-
-                return [
-                    'category_name' => $categoryName,
-                    'rate_sale' => $rateSale,
-                    'qty' => $totalQty,
-                    'amount' => $amount,
-                ];
-            });
-
-        $categorySummaryCollectionForExtraBed = collect($data->room_categories)
-            ->where('is_xb', 1)
-            ->groupBy('category_id')
-            ->map(function ($items, $categoryId) {
-                $totalQty = $items->sum('qty');
-                $first = $items->first();
-                $rateSale = (float) ($first->rate_sale ?? 0);
-                $categoryName = $first->category->name ?? 'Unknown';
-
-                $amount = $rateSale * $totalQty;
-
-                return [
-                    'category_name' => $categoryName,
-                    'rate_sale' => $rateSale,
-                    'qty' => $totalQty,
-                    'amount' => $amount,
-                ];
-            });
-        $categorySummaryStringWithoutXB = $categorySummaryCollection->map(function ($item) {
-            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
-        })->implode(', ');
-        $totalQty = $categorySummaryCollection->sum('qty');
-        $totalAmount = $categorySummaryCollection->sum('amount');
-        $name = $data->code . ': RESERVATION CONFIRMATION SHEET';
-        $categorySummaryStringForXB = $categorySummaryCollectionForExtraBed->map(function ($item) {
-            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
-        })->implode(', ');
-        $totalXbQty = $categorySummaryCollectionForExtraBed->sum('qty');
-        $totalXbAmount = $categorySummaryCollectionForExtraBed->sum('amount');
-        $roomTypeRowSpan = 1;
-        if(isset($totalXbQty) && $totalXbQty > 0){
-            $roomTypeRowSpan = 2;
-        }
-        $data = [
-            'saleRoom' => $data,
-            'name' => $name,
-            'date' => Carbon::now()->format('d/m/Y'),
-            'title' => $name,
-            'categorySummaryStringWithoutXB' => $categorySummaryStringWithoutXB,
-            'categorySummaryStringForXB' => $categorySummaryStringForXB,
-            'totalRoomQty' => $totalQty,
-            'totalXbQty' => $totalXbQty,
-            'roomTypeRowSpan'=> $roomTypeRowSpan,
-            'totalAmount' => $totalAmount,
-            'totalPaid' => 0.00,
-            'totalDue' => $totalAmount,
-        ];
-
-        if ($data) {
-            $html = view('pdf.reservation-confirmation')->with(['data' => $data, 'title' => $name])->render();
-            $header = view('pdf.header')->render();
-            $footer = view('pdf.footer')->render();
-
-            $this->mpdfService->mpdf($name);
-            $mpdf = $this->mpdfService->getMpdf();
-            $mpdf->SetHTMLHeader($header);
-            $mpdf->SetHTMLFooter($footer);
-            $mpdf->WriteHTML($html);
-            $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
         }
     }
     public function reservationList(Request $request)
@@ -1577,13 +1483,15 @@ class SaleRoomController extends Controller
         return response()->json($reservations);
     }
 
-    public function getSaleRecordForPayment(Request $request){
+    public function getSaleRecordForPayment(Request $request)
+    {
         return response()->json(
             SaleRoom::where('code', $request->code)->firstOrFail()
         );
     }
 
-    public function getVoucherList(Request $request) {
+    public function getVoucherList(Request $request)
+    {
         return response()->json(
             AccVoucher::where('sale_room_id', $request->get('sale_id'))
                 ->where('payment_method', '!=', 'N/A')
@@ -1592,7 +1500,8 @@ class SaleRoomController extends Controller
         );
     }
 
-    public function getLedgerListBySaleId(Request $request){
+    public function getLedgerListBySaleId(Request $request)
+    {
         return response()->json(
             AccLedger::where('sale_room_id', $request->get('sale_id'))
                 ->where('type', 'sale')
@@ -1605,7 +1514,7 @@ class SaleRoomController extends Controller
     {
         try {
             DB::beginTransaction();
-                $temp = RoomTemp::where('sale_id', $saleRoom->id)->first();
+            $temp = RoomTemp::where('sale_id', $saleRoom->id)->first();
 
             if ($temp) {
                 if ($temp->updated_at < Carbon::now()->subHour(1)) {
@@ -1644,7 +1553,7 @@ class SaleRoomController extends Controller
                 'date_to' => $dates->last(),
                 'guest' => $saleRoom->sale_guest
             ]);
-        }catch (Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage());
         }
@@ -1659,7 +1568,7 @@ class SaleRoomController extends Controller
             $roomTemp->details()->delete();
 
             $roomAllocations = SaleRoomAllocation::where('room_sale_id', $sale_id)->get();
-//            return response()->json($roomAllocations);
+            //            return response()->json($roomAllocations);
             $details = $roomAllocations->map(function ($allocation) {
                 return [
                     'room_number_id' => $allocation->room_number_id,
