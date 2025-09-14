@@ -111,7 +111,7 @@ class GuestController extends Controller
             ->get();
 
         return response()->json($guests);
-    }
+    }   
 
     public function guestBySale(SaleRoom $saleRoom)
     {
