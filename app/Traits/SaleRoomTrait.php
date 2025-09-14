@@ -18,7 +18,7 @@ trait SaleRoomTrait
         return [
             'guest_id' => 'required|integer|min:1',
             'temp_id' => 'required|integer|min:1',
-            'status' => 'required|in:tentative,checkin',
+            'status' => 'required|in:tentative,checkedin',
             'payment_details' => 'required|array',
 
             'payment_details.manualNetPrice' => 'nullable|numeric|min:0|max:999999.99',

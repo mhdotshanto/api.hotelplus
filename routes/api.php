@@ -16,6 +16,7 @@ use App\Http\Controllers\api\SaleRoomController;
 use App\Http\Controllers\api\GuestController;
 use App\Http\Controllers\api\ConfigController;
 use App\Http\Controllers\api\ReportController;
+use App\Http\Controllers\api\MiscController;
 
 Route::get('test-api', function () {
     return response()->json('working.....');
@@ -42,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payment-platform-options', 'getPaymentPlatformOptions');
         Route::get('/party-options', 'getPartyOptions');
         Route::get('/global-search-options', 'getGlobalSearchOptions');
+        Route::get('/get-status-counts', 'getStatusCounts');
     });
 
     Route::apiResource('user', UserController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -135,9 +137,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
-Route::get('reservation', [ReportController::class, 'printReservationDetail']);
-Route::get('ledger', [ReportController::class, 'ledgerReport']);
-Route::get('checkin', [ReportController::class, 'checkinReport']);
-Route::get('checkout', [ReportController::class, 'checkoutReport']);
+Route::get('reservation', [ReportController::class, 'printReservationDetail'])->name('reservation');
+Route::get('ledger', [ReportController::class, 'ledgerReport'])->name('ledger');
+Route::get('checkedin', [ReportController::class, 'checkinReport'])->name('checkedin');
+Route::get('checkedout', [ReportController::class, 'checkoutReport'])->name('checkedout');
+Route::get('daily-room', [ReportController::class, 'dailyRoomReport'])->name('daily-room-report');
+Route::get('inhouse-guest', [ReportController::class, 'inhouseGuestReport'])->name('inhouse-guest-report');
+Route::get('arrival-guest', [ReportController::class, 'arrivalGuestReport'])->name('arrival-guest-report');
+Route::get('all-guests', [ReportController::class, 'allGuestReport'])->name('all-guest-report');
+Route::get('guest-report-by-date', [ReportController::class, 'guestReportByDate'])->name('guest-report-by-date');
 
 

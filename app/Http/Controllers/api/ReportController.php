@@ -7,12 +7,18 @@ use Illuminate\Http\Request;
 use App\Models\SaleRoom;
 use App\Services\ReportServices\ReportService;
 use App\Services\ReportServices\MpdfService;
-use Carbon\Carbon;
 use App\Exports\LedgerExport;
 use App\Exports\CheckinExport;
 use App\Exports\CheckoutExport;
+use App\Exports\DailyRoomExport;
+use App\Exports\InhouseGuestExport;
+use App\Exports\ArrivalGuestExport;
+use App\Exports\AllGuestExport;
+use App\Exports\GuestByDateExport;
+use App\Models\Guest;
 use Maatwebsite\Excel\Facades\Excel;
-
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 class ReportController extends Controller
 {
     protected $mpdfService;
@@ -75,21 +81,41 @@ class ReportController extends Controller
                 'output' => 'required|string',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
-                'sales_by' => 'required|array',            
+                'references' => 'required|array',            
             ]);
+            $name = "Checkin Report";
             if ($validated) {
                 $output = $validated['output'];
                 $data = $this->reportService->getCheckinData($validated);
+                $data['routes']['pdf'] = route(
+                    'checkedin',
+                    [
+                        'output' => 'pdf',
+                        'date_from' => $validated['date_from'],
+                        'date_to' => $validated['date_to'],
+                        'references' => $validated['references'],
+                    ]
+                );
+                $data['routes']['excel'] = route(
+                    'checkedin',
+                    [
+                        'output' => 'excel',
+                        'date_from' => $validated['date_from'],
+                        'date_to' => $validated['date_to'],
+                        'references' => $validated['references'],
+                    ]
+                );
+                $data['title'] = $name;
             } else {
                 return response()->json([
                     'message' => 'Validation Failed',
                 ], 400);
             };
         
-            $name = "Checkin Report"; 
+             
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.sales.checkin.html')->with(['data' => $data, 'title' => $name]);
+                    return view('reports.sales.checkin.html')->with(['data' => $data]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
@@ -99,7 +125,7 @@ class ReportController extends Controller
                     );
                 }
             } elseif($output=="pdf") {            
-                $html = view('reports.sales.checkin.pdf')->with(['data' => $data, 'title' => $name])->render();
+                $html = view('reports.sales.checkin.pdf')->with(['data' => $data])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
                 $this->mpdfService->mpdf($name);
@@ -162,21 +188,41 @@ class ReportController extends Controller
                 'output' => 'required|string',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
-                'sales_by' => 'required|array',            
+                'references' => 'required|array',            
             ]);
+            $name = "Checkout Report"; 
             if ($validated) {
                 $output = $validated['output'];
-                $data = $this->reportService->getCheckinData($validated);
+                $data = $this->reportService->getCheckoutData($validated);
+                $data['routes']['pdf'] = route(
+                    'checkedout',
+                    [
+                        'output' => 'pdf',
+                        'date_from' => $validated['date_from'],
+                        'date_to' => $validated['date_to'],
+                        'references' => $validated['references'],
+                    ]
+                );
+                $data['routes']['excel'] = route(
+                    'checkedout',
+                    [
+                        'output' => 'excel',
+                        'date_from' => $validated['date_from'],
+                        'date_to' => $validated['date_to'],
+                        'references' => $validated['references'],
+                    ]
+                );
+                $data['title'] = $name;
             } else {
                 return response()->json([
                     'message' => 'Validation Failed',
                 ], 400);
             };
         
-            $name = "Checkout Report"; 
+            
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.sales.checkout.html')->with(['data' => $data, 'title' => $name]);
+                    return view('reports.sales.checkout.html')->with(['data' => $data]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
@@ -186,7 +232,7 @@ class ReportController extends Controller
                     );
                 }
             } elseif($output=="pdf") {            
-                $html = view('reports.sales.checkout.pdf')->with(['data' => $data, 'title' => $name])->render();
+                $html = view('reports.sales.checkout.pdf')->with(['data' => $data])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
                 $this->mpdfService->mpdf($name);
@@ -203,5 +249,462 @@ class ReportController extends Controller
             ], 422);
         }
         
+    }
+    public function dailyRoomReport(Request $request)
+    {
+       // dd($request->all());
+        try {
+            $validated = $request->validate([           
+                'output' => 'required|string',
+                'date' => 'required|date', 
+                'roomType'=>'required|string',      
+            ]);
+            if ($validated) {
+                $output = $validated['output'];
+                $data = $this->reportService->getDailyRoomData($validated);
+                $data['routes']['pdf']= route(
+                    'daily-room-report',[
+                        'output' => 'pdf',
+                        'date' => $validated['date'],
+                        'roomType' => $validated['roomType'],
+                    ]
+                );
+                $data['routes']['excel'] = route(
+                    'daily-room-report',
+                    [
+                        'output' => 'excel',
+                        'date' => $validated['date'],
+                        'roomType' => $validated['roomType'],
+                    ]
+                );
+                $data['title'] = "Daily Room Report";
+                
+                //dd($data);
+            } else {
+                return response()->json([
+                    'message' => 'Validation Failed',
+                ], 400);
+            };
+        
+            $name = "Daily Room Report"; 
+            if ($output === 'html') {
+                if ($data) {
+                    return view('reports.sales.daily-room-report.html')->with(['data' => $data]);
+                }
+            } elseif ($output === "excel") {
+                if ($data) {
+                    return Excel::download(
+                        new DailyRoomExport($data, $name),
+                        "{$name}.xlsx"
+                    );
+                }
+            } elseif($output=="pdf") {    
+                //dd($data);        
+                $html = view('reports.sales.daily-room-report.pdf')->with(['data' => $data, 'title' => $name])->render();
+                $header = view('reports.layouts.pdf.header')->render();
+                $footer = view('reports.layouts.pdf.footer')->render();
+                $this->mpdfService->mpdf($name);
+                $mpdf = $this->mpdfService->getMpdf();
+                $mpdf->SetHTMLHeader($header);
+                $mpdf->SetHTMLFooter($footer);
+                $mpdf->WriteHTML($html);
+                $mpdf->Output("{$name}.pdf", 'I');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+        
+    }
+    public function inhouseGuestReport(Request $request)
+    {        
+        try {
+            $validated = $request->validate([           
+                'output' => 'required|string',
+                'reportType'=>'required|string',      
+            ]);
+            if ($validated) {
+                $reportType = $validated['reportType'];
+                 if(isset($reportType)){
+                    if($reportType=='inhouseGuest'){
+                    $report_title = "INHOUSE GUEST REPORT";
+                    } elseif($reportType=='checkinMissed'){
+                        $report_title = "CHECKIN MISSED GUEST REPORT";
+                    }elseif($reportType=='checkoutMissed'){
+                        $report_title = "CHECKOUT MISSED GUEST REPORT";
+                    }
+                }
+                $output = $validated['output'];
+                $data = $this->reportService->getInhouseGuestData($validated);
+                //dd($data);
+                $data['routes']['pdf']= route(
+                    'inhouse-guest-report',[
+                        'output' => 'pdf',
+                        'reportType' => $validated['reportType'],
+                    ]
+                );
+                $data['routes']['excel'] = route(
+                    'inhouse-guest-report',
+                    [
+                        'output' => 'excel',
+                        'reportType' => $validated['reportType'],
+                    ]
+                );
+                $data['title'] = $report_title;
+            } else {
+                return response()->json([
+                    'message' => 'Validation Failed',
+                ], 400);
+            };
+        
+            //$name = "Inhouse Guest Report"; 
+            if ($output === 'html') {
+                if ($data) {
+                    return view('reports.guest.inhouse.html')->with(['data' => $data]);
+                }
+            } elseif ($output === "excel") {
+                if ($data) {
+                    return Excel::download(
+                        new InhouseGuestExport($data, $report_title),
+                        "{$report_title}.xlsx"
+                    );
+                }
+            } elseif($output=="pdf") {            
+                $html = view('reports.guest.inhouse.pdf')->with(['data' => $data, 'title' => $report_title])->render();
+                $header = view('reports.layouts.pdf.header')->render();
+                $footer = view('reports.layouts.pdf.footer')->render();
+                $this->mpdfService->mpdf($report_title);
+                $mpdf = $this->mpdfService->getMpdf();
+                $mpdf->SetHTMLHeader($header);
+                $mpdf->SetHTMLFooter($footer);
+                $mpdf->WriteHTML($html);
+                $mpdf->Output("{$report_title}.pdf", 'I');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+        
+    }
+
+    public function arrivalGuestReport(Request $request)
+    {
+            $validated = $request->validate([
+                'output' => 'required|string',
+            ]);
+            $name = "Arrival Report";
+            if ($validated) {
+                $output = $validated['output'];
+                $data = $this->reportService->getArrivalGuestData($validated);
+                $data['routes']['pdf'] = route(
+                    'arrival-guest-report',
+                    [
+                        'output' => 'pdf',
+                    ]
+                );
+                $data['routes']['excel'] = route(
+                    'arrival-guest-report',
+                    [
+                        'output' => 'excel',
+                    ]
+                );
+                $data['title'] = $name;
+            } else {
+                return response()->json([
+                    'message' => 'Validation Failed',
+                ], 400);
+            };
+        try {
+            if ($output === 'html') {
+                if ($data) {
+                    return view('reports.guest.arrival.html')->with(['data' => $data]);
+                }
+            } elseif ($output === "excel") {
+                if ($data) {
+                    return Excel::download(
+                        new ArrivalGuestExport($data, $name),
+                        "{$name}.xlsx"
+                    );
+                }
+            } elseif ($output == "pdf") {
+                $html = view('reports.guest.arrival.pdf')->with(['data' => $data])->render();
+                $header = view('reports.layouts.pdf.header')->render();
+                $footer = view('reports.layouts.pdf.footer')->render();
+                $this->mpdfService->mpdf($name);
+                $mpdf = $this->mpdfService->getMpdf();
+                $mpdf->SetHTMLHeader($header);
+                $mpdf->SetHTMLFooter($footer);
+                $mpdf->WriteHTML($html);
+                $mpdf->Output("{$name}.pdf", 'I');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+    public function guestReportByDate(Request $request)
+    {
+        //dd($request->all());
+        $validated = $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date',
+            'output' => 'required|string',
+            'reportType' => 'required|string',
+        ]);        
+        if ($validated) {
+            $reportType = $validated['reportType'];
+            if(isset($reportType)){
+                if($reportType=='checkedin'){
+                    $report_name = "GUEST REPORT BY CHECKED IN DATE";
+                }elseif($reportType=='checkedout'){
+                    $report_name = "GUEST REPORT BY CHECKED OUT DATE";
+                }
+            }
+            $report_title = "GUEST REPORT BY DATE";            
+            $output = $validated['output'];
+            $data = $this->reportService->getGuestByDate($validated);
+            $data['routes']['pdf'] = route(
+                'guest-report-by-date',
+                [
+                    'date_from' => $validated['date_from'],
+                    'date_to' => $validated['date_to'],
+                    'reportType' => $validated['reportType'],
+                    'output' => 'pdf',
+                ]
+            );
+            $data['routes']['excel'] = route(
+                'guest-report-by-date',
+                [
+                    'date_from' => $validated['date_from'],
+                    'date_to' => $validated['date_to'],
+                    'reportType' => $validated['reportType'],
+                    'output' => 'excel',
+                ]
+            );
+            $data['title'] = $report_title;
+            $data['date_from'] = $validated['date_from'];
+            $data['date_to'] = $validated['date_to'];
+        } else {
+            return response()->json([
+                'message' => 'Validation Failed',
+            ], 400);
+        };
+        try {
+            if ($output === 'html') {
+                if ($data) {
+                    return view('reports.guest.byDate.html')->with(['data' => $data]);
+                }
+            } elseif ($output === "excel") {
+                if ($data) {
+                    return Excel::download(
+                        new GuestByDateExport($data, $report_name),
+                        "{$report_name}.xlsx"
+                    );
+                }
+            } elseif ($output == "pdf") {
+                $html = view('reports.guest.byDate.pdf')->with(['data' => $data])->render();
+                $header = view('reports.layouts.pdf.header')->render();
+                $footer = view('reports.layouts.pdf.footer')->render();
+                $this->mpdfService->mpdf($report_title);
+                $mpdf = $this->mpdfService->getMpdf();
+                $mpdf->SetHTMLHeader($header);
+                $mpdf->SetHTMLFooter($footer);
+                $mpdf->WriteHTML($html);
+                $mpdf->Output("{$report_name}.pdf", 'I');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+    public function allGuestReport(Request $request)
+    {
+        $validated = $request->validate([
+            'output' => 'required|string',
+        ]);
+        $name = "All Guests Report";
+        //dd($validated, $name);
+        if ($validated) {
+            $output = $validated['output'];
+            $data = $this->reportService->getAllGuestData($validated);
+            $data['routes']['pdf'] = route(
+                'all-guest-report',
+                [
+                    'output' => 'pdf',
+                ]
+            );
+            $data['routes']['excel'] = route(
+                'all-guest-report',
+                [
+                    'output' => 'excel',
+                ]
+            );
+            $data['title'] = $name;
+        } else {
+            return response()->json([
+                'message' => 'Validation Failed',
+            ], 400);
+        };
+        try {
+            if ($output === 'html') {
+                if ($data) {
+                    return view('reports.guest.all.html')->with(['data' => $data]);
+                }
+            } elseif ($output === "excel") {
+                if ($data) {
+                    return (new AllGuestExport)->download('allGuests.xlsx');
+                    // return Excel::download(
+                    //     new AllGuestExport($data, $name),
+                    //     "{$name}.xlsx"
+                    // );
+                }
+            } elseif ($output == "pdf") {
+                $this->handleLargePdf();
+                // $html = view('reports.guest.all.pdf')->with(['data' => $data])->render();
+                // $header = view('reports.layouts.pdf.header')->render();
+                // $footer = view('reports.layouts.pdf.footer')->render();
+                // $this->mpdfService->mpdf($name);
+                // $mpdf = $this->mpdfService->getMpdf();
+                // $mpdf->SetHTMLHeader($header);
+                // $mpdf->SetHTMLFooter($footer);
+                // $mpdf->WriteHTML($html);
+                // $mpdf->Output("{$name}.pdf", 'I');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+    public function handleLargePdf()
+    {
+        $this->mpdfService->mpdf("Large PDF");
+        $mpdf = $this->mpdfService->getMpdf();
+        $mpdf->SetHTMLHeader(view('reports.layouts.pdf.header')->render());
+        $mpdf->SetHTMLFooter(view('reports.layouts.pdf.footer')->render());
+
+        // Start table
+        $mpdf->WriteHTML('<table border="1" cellspacing="0" cellpadding="5" width="100%">
+        <thead>
+            <tr>
+                <th>ID</th><th>First Name</th><th>Last Name</th>
+                <th>Email</th><th>Mobile</th><th>Created At</th>
+            </tr>
+        </thead><tbody>');
+
+        $chunk_count = 0;
+        Guest::chunk(500, function ($guests) use ($mpdf, &$chunk_count) {
+            Log::info('Processing chunk number: ' . (++$chunk_count));
+            $chunkHtml = '';
+            foreach ($guests as $guest) {
+                $chunkHtml .= '<tr>
+                <td>' . $guest->id . '</td>
+                <td>' . e($guest->first_name) . '</td>
+                <td>' . e($guest->last_name) . '</td>
+                <td>' . e($guest->email) . '</td>
+                <td>' . e($guest->mobile) . '</td>
+                <td>' . $guest->created_at->format('Y-m-d') . '</td>
+            </tr>';
+            }
+            $mpdf->WriteHTML($chunkHtml);
+            //$mpdf->flush(); 
+        });
+
+        $mpdf->WriteHTML('</tbody></table>');
+
+        // Stream PDF instead of holding in memory
+        $mpdf->Output("LargePDF.pdf", \Mpdf\Output\Destination::INLINE);
+    }
+
+    public function handleLargePdf_v2()
+    {
+        // Initialize mPDF only once
+        $this->mpdfService->mpdf("Large PDF");
+        $mpdf = $this->mpdfService->getMpdf();
+        $mpdf->SetHTMLHeader(view('reports.layouts.pdf.header')->render());
+        $mpdf->SetHTMLFooter(view('reports.layouts.pdf.footer')->render());
+
+        // Write the table opening tags once
+        $mpdf->WriteHTML('<table border="1" cellspacing="0" cellpadding="5" width="100%">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Created At</th>
+            </tr>
+        </thead><tbody>');
+
+        // Use chunking to write rows directly to mPDF, reducing memory footprint
+        $chunk_count = 0;
+        Guest::chunk(500, function ($guests) use ($mpdf, &$chunk_count) {
+            Log::info('Processing chunk number: ' . (++$chunk_count));
+            // Prepare HTML for the current chunk
+            $chunkHtml = '';
+            foreach ($guests as $guest) {
+                $chunkHtml .= '<tr>
+                <td>' . $guest->id . '</td>
+                <td>' . $guest->first_name . '</td>
+                <td>' . $guest->last_name . '</td>
+                <td>' . $guest->email . '</td>
+                <td>' . $guest->mobile . '</td>
+                <td>' . Carbon::parse($guest->created_at)->format('Y-m-d') . '</td>
+            </tr>';
+            }
+            // Write the HTML chunk to the PDF
+            $mpdf->WriteHTML($chunkHtml);
+        });
+
+        // Write the table closing tags once
+        $mpdf->WriteHTML('</tbody></table>');
+
+        // Output the final PDF
+        $mpdf->Output("LargePDF.pdf", 'I');
+    }
+    public function handleLargePdf_v1(){
+        $this->mpdfService->mpdf("Large PDF");
+        $header = view('reports.layouts.pdf.header')->render();
+        $footer = view('reports.layouts.pdf.footer')->render();
+        //$this->mpdfService->mpdf($name);
+        $mpdf = $this->mpdfService->getMpdf();
+        $mpdf->SetHTMLHeader($header);
+        $mpdf->SetHTMLFooter($footer);
+        $html = '<table border="1" cellspacing="0" cellpadding="5" width="100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Email</th>
+                        <th>Mobile</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead><tbody>';
+                Guest::chunk(1000, function($guests) use(&$html){
+                    foreach($guests as $guest){
+                        $html.='<tr>
+                            <td>'.$guest->id.'</td>
+                            <td>'.$guest->first_name.'</td>
+                            <td>'.$guest->last_name.'</td>
+                            <td>'.$guest->email.'</td>
+                            <td>'.$guest->mobile.'</td>
+                            <td>'.Carbon::parse($guest->created_at)->format('Y-m-d').'</td>
+                        </tr>';
+                    }
+                });
+        $html.='</tbody></table>';
+        $mpdf->WriteHTML($html);
+        $mpdf->Output("LargePDF.pdf", 'I');
     }
 }

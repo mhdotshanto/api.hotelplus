@@ -9,9 +9,12 @@ use App\Models\AccHead;
 use App\Models\AccLedger;
 use App\Models\AccNote;
 use App\Models\AccVoucher;
+use App\Models\RoomNumber;
 use App\Models\SaleRoom;
+use App\Models\SaleRoomAllocation;
 use Illuminate\Support\Carbon;
 use App\Services\PaymentService;
+use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
@@ -277,8 +280,8 @@ class ReportService
         $checkinData = $checkinData->where('date_checkin','<=',$params['date_to']);
     }
    
-    if(isset($params['sales_by'])){
-        $checkinData = $checkinData->whereIn('ref_id',$params['sales_by']);
+    if(isset($params['references'])){
+        $checkinData = $checkinData->whereIn('ref_id',$params['references']);
     }
     $checkinData = $checkinData->get();
     $data_collection = collect($checkinData);
@@ -287,8 +290,7 @@ class ReportService
     $total_net_price = $data_collection->sum('price_net');
     $sale_agents = $checkinData->pluck('sale_agent.name')   
     ->unique()                   
-    ->implode(', ');
-  
+    ->implode(', ');  
     return [
             'from_date' => $params['date_from'] ? \Carbon\Carbon::parse($params['date_from'])->format('d/m/Y') : null,
             'to_date'   => $params['date_to'] ? \Carbon\Carbon::parse($params['date_to'])->format('d/m/Y') : null,
@@ -312,8 +314,8 @@ class ReportService
         $checkoutData = $checkoutData->where('date_checkout','<=',$params['date_to']);
     }
    
-    if(isset($params['sales_by'])){
-        $checkoutData = $checkoutData->whereIn('ref_id',$params['sales_by']);
+    if(isset($params['references'])){
+        $checkoutData = $checkoutData->whereIn('ref_id',$params['references']);
     }
     $checkoutData = $checkoutData->get();
     $data_collection = collect($checkoutData);
@@ -335,5 +337,234 @@ class ReportService
     //return $checkinData;
     //dd($checkinData);
    }
+    public function getDailyRoomData($params)
+    {
+        $date = $params['date'] ?? null;
+        $roomType = $params['roomType'];
 
+        $rooms = RoomNumber::with([
+            'roomName.category',
+            'room_sale_allocation.saleRoom.sale_user:id,name,user_name',
+            'room_sale_allocation.saleRoom.sale_agent:id,name,user_name',
+        ]);
+
+        if ($roomType === "not_sold") {
+            $rooms = $rooms->whereDoesntHave('room_sale_allocation');
+        }
+
+        $rooms = $rooms->get();
+        $queryData = $rooms->flatMap(function ($room) use ($date, $roomType) {
+            //dd($date,$roomType);
+            if($roomType=="sold" || $roomType=="all"){
+                
+            }
+            $allocations = $room->room_sale_allocation
+                ->filter(fn($alloc) => $date ? $alloc->saleRoom->date === $date : true);
+
+            // If allocations found for the date → map them
+            if ($allocations->isNotEmpty() ) {
+                return $allocations->map(function ($alloc) use ($room, $roomType) {
+                    $saleRoom = $alloc->saleRoom;
+                    if($roomType == "sold" || $roomType == "all"){
+                        
+                    }
+                    return [
+                        'room_name'          => $room->name ?? "",
+                        'room_category_name' => $room->roomName->category->name ?? "",
+                        'code'               => $saleRoom->code ?? "",
+                        'status'             => $saleRoom->status ?? "",
+                        'guest_name'         => $saleRoom->guest_name_title
+                            ? ($saleRoom->guest_name_title . " " . $saleRoom->guest_name_first . " " . $saleRoom->guest_name_last)
+                            : "",
+                        'guest_address'      => $saleRoom->guest_address ?? "",
+                        'guest_mobile'       => $saleRoom->guest_mobile ?? "",
+                        'date_checkin'       => $saleRoom->date_checkin ?? "",
+                        'date_checkout'      => $saleRoom->date_checkout ?? null,
+                        'period'             => Carbon::parse($saleRoom->date_checkin)->format('d/m/Y') . " to " . Carbon::parse($saleRoom->date_checkout)->format('d/m/Y') ?? "" ,
+                        'created_by_name'    => optional($saleRoom->sale_user)->user_name
+                            ? ($saleRoom->sale_user->user_name . ' [' . $saleRoom->sale_user->name . ']')
+                            : "",
+                        'reference_name'     => optional($saleRoom->sale_agent)->user_name
+                            ? ($saleRoom->sale_agent->user_name . ' [' . $saleRoom->sale_agent->name . ']')
+                            : "",
+                        // 👇 force cast to float so sum() won’t break
+                        'room_rent'          => (float) ($saleRoom->price_sale ?? 0),
+                        'commision'          => (float) ($saleRoom->commision_amount ?? 0),
+                        'price_net'          => (float) ($saleRoom->price_net ?? 0),
+                    ];
+                });
+            }
+
+            // No allocation → return default row
+            if ($roomType == "not_sold" || $roomType == "all") {
+                return [[
+                    'room_name'          => $room->name ?? "",
+                    'room_category_name' => $room->roomName->category->name ?? "",
+                    'code'               => "",
+                    'status'             => "",
+                    'guest_name'         => "",
+                    'guest_address'      => "",
+                    'guest_mobile'       => "",
+                    'date_checkin'       => "",
+                    'date_checkout'      => "",
+                    'period'             => "",
+                    'created_by_name'    => "",
+                    'reference_name'     => "",
+                    'room_rent'          => (float) 0,
+                    'commision'          => (float) 0,
+                    'price_net'          => (float) 0,
+                ]];
+            }
+        });
+        $totalSale      = $queryData->sum('room_rent');
+        $totalCommission = $queryData->sum('commision');
+        $totalNetSale   = $queryData->sum('price_net');
+        $totalIncome    = $totalNetSale;
+        return [
+            'date'        => $date ? \Carbon\Carbon::parse($date)->format('d/m/Y') : null,
+            'roomData'    => $queryData->values(), // reset indexes            
+            'summary' => [
+                'total_not_sold_room'      => $queryData->count(),
+                'total_sold_room'      => $queryData->whereIn('status', ['guaranteed', 'checkedin', 'checkedout', 'tentative'])->count(),
+                'total_sale'      => number_format($totalSale, 2),
+                'total_commision' => number_format($totalCommission, 2),
+                'total_net_sale'  => number_format($totalNetSale, 2),
+                'total_income'    => number_format($totalIncome, 2),
+            ],
+        ];
+    }
+
+     public function getInhouseGuestData($params)
+    {
+        //dd($params);
+        $today = now()->toDateString();
+        //dd($today);
+        $reportType = $params['reportType'];
+        $roomSaleData = SaleRoom::select(
+        'sale_rooms.*',
+        DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
+        DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+        )
+        ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')    
+        ->groupBy('sale_rooms.id');      
+       // dd($roomSaleData->toSql());
+       if(isset($reportType)){
+            if($reportType=='inhouseGuest'){
+            $roomSaleData = $roomSaleData->inhouseGuests();
+            //dd($roomSaleData->toSql(), $roomSaleData->get());
+            } elseif($reportType=='onArrival'){
+                $roomSaleData = $roomSaleData->onArrivalGuests();
+            } elseif($reportType=='onDeparture'){
+                $roomSaleData = $roomSaleData->onDepartureGuests();
+            } elseif($reportType=='checkinMissed'){
+                $roomSaleData = $roomSaleData->checkinMissedGuests();
+            }elseif($reportType=='checkoutMissed'){
+                $roomSaleData = $roomSaleData->checkoutMissedGuests();
+            }
+       }
+        
+       // dd($roomSaleData->get());
+        
+        $roomSaleData = $roomSaleData->get();
+        $total_rooms = $roomSaleData->sum('room_qty');
+        $total_gross_price = $roomSaleData->sum('price_gross');
+        $total_discount = $roomSaleData->sum('discount_amount');
+        $total_net_price = $roomSaleData->sum('price_net');
+    
+        return [
+            'roomSaleData'  => $roomSaleData,            
+            'total_rooms' => $total_rooms,
+            'total_gross_price' => $total_gross_price,
+            'total_discount' => $total_discount??0.00,
+            'total_net_price' => $total_net_price,
+            'total_collection' => $total_net_price,
+            'total_refund' => 0.00,
+            'total_balance' => $total_net_price,
+            ];
+    }
+
+    public function getArrivalGuestData($params)
+    {        
+        $roomSaleData = SaleRoom::select(
+            'sale_rooms.*',
+            DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
+            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+        )
+            ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
+            ->groupBy('sale_rooms.id');
+            $roomSaleData = $roomSaleData->onArrivalGuests();
+
+        $roomSaleData = $roomSaleData->get();
+        $total_rooms = $roomSaleData->sum('room_qty');
+        $total_gross_price = $roomSaleData->sum('price_gross');
+        $total_discount = $roomSaleData->sum('discount_amount');
+        $total_net_price = $roomSaleData->sum('price_net');
+
+        return [
+            'roomSaleData'  => $roomSaleData,
+            'total_rooms' => $total_rooms,
+            'total_gross_price' => $total_gross_price,
+            'total_discount' => $total_discount ?? 0.00,
+            'total_net_price' => $total_net_price,
+            'total_collection' => $total_net_price,
+            'total_refund' => 0.00,
+            'total_balance' => $total_net_price,
+        ];
+    }
+    public function getGuestByDate($params)
+    {   
+        //dd($params);     
+        $roomSaleData = SaleRoom::select(
+            'sale_rooms.*',
+            DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
+            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+        )
+            ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
+            ->groupBy('sale_rooms.id');
+            if(isset($params['reportType']) && $params['reportType']=='checkedin'){
+                $roomSaleData = $roomSaleData->where('date_checkin','>=',$params['date_from']);
+                $roomSaleData = $roomSaleData->where('date_checkin','<=',$params['date_to']);
+            } elseif(isset($params['reportType']) && $params['reportType']=='checkedout'){
+                $roomSaleData = $roomSaleData->where('date_checkout','>=',$params['date_from']);
+                $roomSaleData = $roomSaleData->where('date_checkout','<=',$params['date_to']);
+            }            
+
+        $roomSaleData = $roomSaleData->get();
+        $total_rooms = $roomSaleData->sum('room_qty');       
+        $total_net_price = $roomSaleData->sum('price_net');
+
+        return [
+            'roomSaleData'  => $roomSaleData,
+            'total_rooms' => $total_rooms,            
+            'total_net_price' => $total_net_price,
+            'total_balance' => $total_net_price,
+            'status' => $params['reportType']=='checkedin' ? "CHECKIN" : "CHECKOUT",
+        ];
+    }
+    public function getAllGuestData($params)
+    {        
+        $roomSaleData = SaleRoom::select(
+            'sale_rooms.*',
+            DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
+            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+        )
+            ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
+            ->groupBy('sale_rooms.id');           
+        $roomSaleData = $roomSaleData->get();
+        $total_rooms = $roomSaleData->sum('room_qty');
+        $total_gross_price = $roomSaleData->sum('price_gross');
+        $total_discount = $roomSaleData->sum('discount_amount');
+        $total_net_price = $roomSaleData->sum('price_net');
+
+        return [
+            'roomSaleData'  => $roomSaleData,
+            'total_rooms' => $total_rooms,
+            'total_gross_price' => $total_gross_price,
+            'total_discount' => $total_discount ?? 0.00,
+            'total_net_price' => $total_net_price,
+            'total_collection' => $total_net_price,
+            'total_refund' => 0.00,
+            'total_balance' => $total_net_price,
+        ];
+    }
 }
