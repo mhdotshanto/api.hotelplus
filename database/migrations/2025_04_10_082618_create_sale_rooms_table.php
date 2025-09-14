@@ -48,7 +48,7 @@ return new class extends Migration
             $table->date('date_checkout');
             $table->time('etd')->default('11:00:00');
             $table->timestamp('date_to_confirm')->nullable();
-            $table->enum('status',['tentative','guaranteed','checkin','checkout','cancelled','postponed','inactive']);
+            $table->enum('status',['tentative','guaranteed','checkedin','checkedout','cancelled','postponed','inactive']);
             $table->boolean('is_room_allocated')->default(1);
             $table->timestamps();
         });

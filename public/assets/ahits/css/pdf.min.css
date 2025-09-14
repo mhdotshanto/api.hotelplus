@@ -535,3 +535,37 @@ table .subtotal td{
 table.font-11 tbody tr td, table.font-11 thead tr th{
     font-size: 11px;
 }
+
+
+.table td,
+.table th {
+    border-left: none !important;
+    border-right: none !important;
+}
+
+.no-column-border {
+    border-collapse: separate !important;
+    /* override Bootstrap */
+    border-spacing: 0;
+    /* avoid gaps */
+}
+
+.no-column-border td,
+.no-column-border th {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 0.5px solid #d5d8dc !important;
+    /* thin row line */
+}
+.no-column-border tr {
+    border-bottom: 0.5px solid #d5d8dc !important;
+}
+
+
+.daily-room-header{
+    background-color: #d5d8dc;
+    padding:5px;
+}
+.sold-room {
+    background-color: #d5d8dc;
+}

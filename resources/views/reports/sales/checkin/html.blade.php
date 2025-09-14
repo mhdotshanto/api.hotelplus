@@ -5,7 +5,7 @@
    <p class="text-center p-0 m-0 fo-12" style="font-size:18px"><strong>DATE:</strong> {{ $data['from_date'] }} TO {{ $data['to_date'] }}</p>
    <p class="text-center p-0 m-0 fo-12" style="font-size:16px"><strong>STAFF:</strong> {{ $data['sale_agents'] }}</p>
     <div class="mt-3">
-        <table class="table table-bordered border-primary">
+        <table class="table table-bordered border-default">
         <tbody>
             <tr class="ledger-header">
                 <th>RES#</th>
@@ -22,25 +22,25 @@
             @foreach ($data['checkinData'] as $item)
                 <tr class="ledger-details">
                 <td width="20%" style="text-align:left">{{$item->code}}</td>
-                <td width="20%">{{$item->date}}</td>
-                <td width="20%" style="text-align:left">{{$item->date_checkin}} - {{$item->date_checkout}}</td>
+                <td width="20%">{{\Carbon\Carbon::parse($item->date)->format('d/m/Y')}}</td>
+                <td width="20%" style="text-align:left">{{\Carbon\Carbon::parse($item->date_checkin)->format('d/m/Y')}} - {{\Carbon\Carbon::parse($item->date_checkout)->format('d/m/Y')}}</td>
                 <td width="20%" style="text-align:left"><p>{{$item->guest_name_title}} {{$item->guest_name_first}} {{$item->guest_name_last}}</p><p>
                     {{$item->guest_mobile}}</p></td>
                     <td width="20%" style="text-align:left">{{$item->sale_agent?$item->sale_agent->name:""}}</td>
                     <td width="20%" style="text-align:center">{{$item->room_qty}}</td>
-                    <td width="20%">{{$item->price_gross}}</td>
-                    <td width="20%">{{$item->price_net}}</td>
-                    <td width="20%">0.00</td>
-                    <td width="20%">0.00</td>
+                    <td width="20%" style="text-align:right">{{bdt_format($item->price_gross)}}</td>
+                    <td width="20%" style="text-align:right">{{bdt_format($item->price_net)}}</td>
+                    <td width="20%" style="text-align:right">0.00</td>
+                    <td width="20%" style="text-align:right">0.00</td>
                 </tr>                
             @endforeach
             <tr>
-                    <td colspan="5" style="text-align:left">Total:</td>
-                    <td style="text-align:center">{{$data['total_rooms']}}</td>
-                    <td style="text-align:right">{{bdt_format($data['total_gross_price'])}}</td>
-                    <td style="text-align:right">{{bdt_format($data['total_net_price'])}}</td>
-                    <td style="text-align:right">0.00</td>
-                    <td style="text-align:right">0.00</td>
+                    <td colspan="5" style="text-align:left"><strong>Total:</strong></td>
+                    <td style="text-align:center"><strong>{{$data['total_rooms']}}</strong></td>
+                    <td style="text-align:right"><strong>{{bdt_format($data['total_gross_price'])}}</strong></td>
+                    <td style="text-align:right"><strong>{{bdt_format($data['total_net_price'])}}</strong></td>
+                    <td style="text-align:right"><strong>0.00</strong></td>
+                    <td style="text-align:right"><strong>0.00</strong></td>
                 </tr>                
         </tbody>
     </table>

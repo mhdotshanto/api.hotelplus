@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="{{asset('assets/ahits/css/pdf.min.css')}}">
+<link rel="stylesheet" href="{{asset('reports/css/pdf.min.css')}}">
 <table width="100%">
     <tr>
         <td width="50%" style="color:#0000BB; ">

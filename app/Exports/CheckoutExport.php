@@ -16,9 +16,9 @@ $this->title = $title;
 
 public function view(): View
 {
-return view('reports.sales.checkin.excel', [
+return view('reports.sales.checkout.excel', [
 'data' => $this->data,
-'title' => $this->title,
+'title' => $this->data['title'],
 ]);
 }   
 }

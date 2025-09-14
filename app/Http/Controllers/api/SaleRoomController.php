@@ -1183,7 +1183,7 @@ class SaleRoomController extends Controller
                 $config
             );
 
-            if ($sale->status == 'checkin') $this->paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
+            if ($sale->status == 'checkedin') $this->paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
 
             $sale->preferences()->sync($preferences);
             $this->createSaleCategories(
@@ -1436,7 +1436,7 @@ class SaleRoomController extends Controller
     {
         try {
             DB::beginTransaction();
-            $saleRoom->status = 'checkin';
+            $saleRoom->status = 'checkedin';
             $saleRoom->save();
             //            if (!$saleRoom->is_confirmed)
             $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
@@ -1468,8 +1468,13 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-        $query = SaleRoom::with('note')->orderBy('id', 'desc');
-
+       // dd($request->all());
+        $query = SaleRoom::with('note');
+        if($request->filled('status') && $request->status != 'all'){
+            $query->where('status', $request->status);
+        }        
+        $query ->orderBy('id', 'desc');
+        // dd($query->toSql());
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {

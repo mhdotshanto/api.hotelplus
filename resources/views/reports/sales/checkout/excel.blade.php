@@ -18,7 +18,7 @@
                 <th>DUE</th>
                 <th>TIP</th>
             </tr>
-            @foreach ($data['checkinData'] as $item)
+            @foreach ($data['checkoutData'] as $item)
                 <tr class="ledger-details">
                 <td width="20%" style="text-align:left">{{$item->code}}</td>
                 <td width="20%">{{$item->date}}</td>
@@ -27,20 +27,20 @@
                     {{$item->guest_mobile}}</p></td>
                     <td width="20%" style="text-align:left">{{$item->sale_agent?$item->sale_agent->name:""}}</td>
                     <td width="20%" style="text-align:center">{{$item->room_qty}}</td>
-                    <td width="20%">{{$item->price_gross}}</td>
-                    <td width="20%">{{$item->price_net}}</td>
+                    <td width="20%">{{bdt_format($item->price_gross)}}</td>
+                    <td width="20%">{{bdt_format($item->price_net)}}</td>
                     <td width="20%">0.00</td>
                     <td width="20%">0.00</td>
                 </tr>                
             @endforeach
             <tr>
-                    <td colspan="5" style="text-align:left">Total:</td>
-                    <td style="text-align:center">{{$data['total_rooms']}}</td>
-                    <td style="text-align:right">{{bdt_format($data['total_gross_price'])}}</td>
-                    <td style="text-align:right">{{bdt_format($data['total_net_price'])}}</td>
-                    <td style="text-align:right">0.00</td>
-                    <td style="text-align:right">0.00</td>
-                </tr>                
+                <td colspan="5" style="text-align:left"><strong>Total:</strong></td>
+                <td style="text-align:center"><strong>{{$data['total_rooms']}}</strong></td>
+                <td style="text-align:right"><strong>{{bdt_format($data['total_gross_price'])}}</strong></td>
+                <td style="text-align:right"><strong>{{bdt_format($data['total_net_price'])}}</strong></td>
+                <td style="text-align:right"><strong>0.00</strong></td>
+                <td style="text-align:right"><strong>0.00</strong></td>
+            </tr>                
         </tbody>
     </table>
     </div>  
