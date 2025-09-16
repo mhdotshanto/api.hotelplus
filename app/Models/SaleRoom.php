@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @property mixed $id
@@ -91,4 +92,39 @@ class SaleRoom extends Model
     {
         return $this->hasOne(SaleCancellationNotes::class, 'sale_id', 'id');
     }
+
+    public function ScopeInhouseGuests($query){
+        $today = now()->toDateString();
+        return $query->where('status','checkedin')
+                ->where('date_checkin','<=',$today)
+                ->where('date_checkout','>=',$today);
+    }
+
+    public function ScopeCheckinMissedGuests($query){
+        $today = now()->toDateString();
+        return $query->whereIn('status', ['tentative', 'guaranteed'])
+                ->where('date_checkin','<=',Carbon::yesterday()->toDateString() );
+    }
+    public function ScopeCheckoutMissedGuests($query)
+    {
+        $today = now()->toDateString();
+        return $query->where('status', '!=', 'checkout')
+            ->where('date_checkout', '<', $today);
+    }
+    /*To Checkin Guests*/
+    public function scopeOnArrivalGuests($query)
+    {
+        return $query->whereIn('status', ['tentative', 'guaranteed'])
+            ->whereIn('date_checkin', [
+                Carbon::today()->format('Y-m-d'),
+                Carbon::yesterday()->format('Y-m-d'),
+            ]);
+    }
+    /*To Checkout Guests*/
+    public function scopeOnDepartureGuests($query)
+    {
+        return $query->where('status', 'checkedin')
+            ->where('date_checkout', '<', Carbon::today()->format('Y-m-d'));
+    }
+   
 }

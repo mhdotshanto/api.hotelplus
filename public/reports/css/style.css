@@ -1,0 +1,689 @@
+@page {
+    header: page-header;
+    footer: page-footer;
+}
+
+@media print {
+    @page {
+        size: auto;
+    }
+}
+
+.container {
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+@media (min-width: 768px) {
+    .container {
+        width: 750px;
+    }
+}
+
+@media (min-width: 992px) {
+    .container {
+        width: 970px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .container {
+        width: 1170px;
+    }
+}
+
+.report-header h1 {
+    font-size: 18px;
+}
+
+.report-header p {
+    font-size: 10px;
+}
+
+.report-content {
+    margin-top: 10px;
+}
+
+.report_title {
+    text-align: center;
+}
+
+.report_title h2 {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.report_title p {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0;
+    padding: 0;
+}
+
+
+.report-footer {
+    display: flex;
+    justify-content: center;
+    font-size: 11px;
+}
+
+.page_no {
+    font-size: 12px;
+    text-align: start;
+    padding-bottom: 10px;
+}
+
+.footer-text {
+    font-size: 10px;
+    text-align: end;
+}
+
+.report-content td {
+    border: 1px solid black;
+    font-size: 10px
+}
+
+.report-content tr {
+    /* border: 1px solid black;*/
+}
+
+.report-content thead th {
+    border: 1px solid black;
+    background-color: #E7E7E6;
+    font-size: 12px;
+
+}
+
+.gtotal td {
+    background-color: #E7E7E6;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.column {
+    float: left;
+    width: 50%;
+}
+
+/* Clear floats after the columns */
+.row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.header-left {
+    padding-top: 3px;
+    height: 100px;
+}
+
+.company_logo {
+    text-align: left;
+    float: left;
+    width: 100%;
+    padding-left: 5px;
+}
+
+.company_logo img {}
+
+.company_info {
+    text-align: left;
+    float: left;
+    width: 65%;
+    padding-left: 7px;
+    margin-left: 7px;
+}
+
+.company_name {
+    text-align: left;
+}
+
+.company_address {
+    text-align: left;
+}
+
+.print_date {
+    font-size: 10px;
+    text-align: right;
+    padding-top: 4px;
+}
+
+.html_report_content {
+    margin-top: 10px;
+}
+
+.html_report_content td {
+    border: 1px solid black;
+    font-size: 10px
+}
+
+.html_report_content tr {
+    border: 1px solid black;
+}
+
+.html_report_content th {
+    border: 1px solid black;
+    background-color: #E7E7E6;
+    font-size: 12px;
+}
+
+.html_company_info {
+    text-align: left;
+    float: left;
+    width: 65%;
+    padding-left: 3px;
+    margin-left: 3px;
+    margin-top: 8px;
+}
+
+.html_company_info p {
+    margin: 0;
+    padding: 0;
+}
+
+.html_company_name {
+    text-align: left;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.html_company_address {
+    text-align: left;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.pdf-particulars {
+    text-align: left;
+}
+
+.main-particulars {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.trb-particulars td {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.trb-reference-header th {
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.capital-body {
+    font-size: 11px;
+    font-weight: normal;
+}
+
+.quotation-overview-content {
+    width: 960px;
+    margin: 0 auto;
+    padding: 2px;
+    background-color: #fff;
+}
+
+.contact-info p {
+    margin: 0;
+    padding: 0;
+    font-weight: bold;
+}
+
+.html-company-name {
+    font-size: 18px;
+}
+
+/* 
+.day-services {
+    padding: 5px;
+} */
+
+
+
+.inclusions-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.rate-header {
+    background: #EEF0F2;
+    text-align: center;
+}
+
+.rate-details {
+    text-align: right;
+}
+
+.rate {
+    margin-top: 5px;
+}
+
+
+.quotation-day-hotel {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.header-left {
+    padding-top: 3px;
+    height: 100px;
+}
+
+.company_logo {
+    text-align: left;
+    float: left;
+    width: 100%;
+    padding-left: 5px;
+}
+
+.company_logo img {}
+
+
+.quotation-overview-content {
+    width: 960px;
+    margin: 0 auto;
+    padding: 2px;
+    background-color: #fff;
+}
+
+.html-company-name {
+    font-size: 18px;
+}
+
+.rep-header-company-info p {
+    margin: 0;
+    padding: 0;
+    max-width: 50%;
+}
+
+.is-clipped {
+    overflow: hidden;
+    text-overflow: inherit;
+    width: 75%;
+    float: right;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.column {
+    float: left;
+}
+
+.clearfix::after {
+    /* content: "";
+    clear: both;
+    display: table; */
+}
+
+.rp-quot-cust-header-left {
+    width: 40%;
+}
+
+.rp-quot-cust-header-right {
+    width: 60%;
+}
+
+.addon-services {
+    margin-top: 5px;
+}
+
+.quotation-day-hotel .card-header {
+    font-size: 15px;
+    color: #fff;
+    background-color: #808080;
+    padding: 5px;
+    margin-bottom: 1px;
+}
+
+.day-services {
+    padding: 5px;
+}
+
+
+
+.inclusions-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.rate-header {
+    background: #EEF0F2;
+    text-align: center;
+}
+
+.rate-details {
+    text-align: right;
+}
+
+/* .rate {
+    margin-top: 2px;
+} */
+
+.quotation-day-hotel {
+    /* width: 120%;
+    height: 100%;
+    overflow: auto; */
+}
+
+.addon-services {
+    margin-top: 5px;
+}
+
+.addon_service_item {
+    font-size: 12px;
+}
+
+.addon_service_title {
+    font-size: 15px;
+    color: #fff;
+    background-color: #079BF7;
+    padding: 5px;
+}
+
+.card {
+    border: 1px solid #EBEBEF;
+    border-radius: 0px;
+}
+
+.quotation-day-hotel .card-header {
+    font-size: 15px;
+    color: #fff;
+    background-color: #808080;
+    padding: 5px;
+    margin-bottom: 3px;
+}
+
+.day-services {
+    padding: 5px;
+}
+
+.day-num {
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+    padding-bottom:2px;
+    /* border-bottom:1px solid black; */
+}
+.pdf-quotation-table {
+border-collapse: collapse;
+    margin-top: 40px;
+}
+.inclusions-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.rate-header {
+    background: #EEF0F2;
+    text-align: center;
+}
+
+.rate-details {
+    text-align: right;
+}
+
+.rate {
+    margin-top: 5px;
+}
+
+.quotation-day-hotel {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.quot-cust-mobile {
+    float: left;
+    width: 30%;
+    text-align: center;
+}
+
+.quot-cust-email {
+    float: left;
+    width: 30%;
+    text-align: center;
+}
+
+.quot-cust-address {
+    text-align: center;
+    padding-left: 5px;
+}
+
+.quot-inclusions {
+    float: left;
+    width: 50%;
+    text-align: left;
+    padding-left: 5px;
+}
+
+.quot-inclusions h6 {
+    margin-bottom: 3px;
+    font-weight: bold
+}
+
+.quot-inclusions p {
+    padding: 0;
+    margin: 0;
+}
+
+.quot-exclusions {
+    text-align: left;
+    padding-left: 5px;
+}
+
+.quot-exclusions h6 {
+    margin-bottom: 3px;
+    font-weight: bold
+}
+
+.quot-exclusions p {
+    padding: 0;
+    margin: 0;
+}
+
+.quot-flight-header-bottom {
+    float: left;
+    width: 33%;
+    text-align: center;
+}
+
+.quot-flight-header-top {
+    font-size: 15px;
+    text-align: center;
+    color: #000 !important;
+    border-bottom: 1px solid white;
+}
+
+.quot-flight-details {
+    float: left;
+    width: 20%;
+    text-align: center;
+}
+.quot-tour-guide-details {
+    float: left;
+    width: 40%;
+    text-align: center;
+}
+
+.flight-info-header {
+    font-size: 12px;
+    color: #000;
+    background-color: #EBEBEF;
+    padding: 5px;
+    margin-bottom: 1px;
+    min-height: 60px;
+}
+
+.flight-info-body {
+    font-size: 12px;
+    color: #000000;
+    padding: 5px;
+    margin-bottom: 1px;
+}
+
+.flight-info p {
+    margin: 1px;
+}
+
+.airline-logo {
+    width: 30px;
+    border: 1px solid #E1E1E1;
+    border-radius: 15px;
+    padding: 1px;
+}
+
+.quot-flight-details-arrow {
+    float: left;
+    width: 12%;
+    display: grid;
+    align-content: center;
+    height: 70px;
+    text-align: center;
+}
+
+.car-total-price {
+    display: flex;
+    align-items: center;
+}
+
+.cs-card {    
+    background: #fff;
+    overflow: hidden;
+    text-align: center;
+    transition: transform 0.3s ease;
+    margin-top:5px;
+}
+
+/* 
+@media (min-width: 768px) {
+    .cs-card {
+        width: 750px;
+    }
+}
+
+@media (min-width: 992px) {
+    .cs-card {
+        width: 970px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .cs-card {
+        width: 1170px;
+    }
+} */
+.cs-card:hover {
+    transform: scale(1.05);
+}
+
+.cs-card . img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.cs-card-content {
+    padding: 15px;
+}
+
+.cs-card h3 {
+    margin: 0;
+    color: #333;
+}
+
+.cs-card p {
+    color: #666;
+    font-size: 14px;
+    margin: 10px 0;
+}
+
+.cs-card button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.cs-card button:hover {
+    background: #0056b3;
+}
+.cs-card .onborder {
+    border: 1px solid #ddd;
+}
+
+ .quotation-rate table {
+     width: 100%;
+     border-collapse: collapse;
+ }
+
+ .quotation-rate th,
+ td {
+     border: 1px solid #ddd;
+     padding: 10px;
+     text-align: left;
+ }
+
+ .quotation-rate th {
+     background-color: #f4f4f4;
+ }
+
+ /* Add zebra striping */
+ .quotation-rate  tbody tr:nth-child(odd) {
+     background-color: #f9f9f9;
+ }
+
+ .quotation-rate tbody tr:nth-child(even) {
+     background-color: #ffffff;
+ }
+ table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        /* Add zebra striping */
+        tbody tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #ffffff;
+        }
+
+                .no-column-border {
+                    border-collapse: separate !important;
+                    /* override Bootstrap */
+                    border-spacing: 0;
+                    /* avoid gaps */
+                }
+        
+                .no-column-border td,
+                .no-column-border tr {
+                    border-left: none !important;
+                    border-right: none !important;
+                    border-bottom: 0.5px solid #d5d8dc !important;
+                    /* thin row line */
+                }
+        
+               
+        
+                .daily-room-header {
+                    background-color: #d5d8dc;
+                    padding: 5px;
+                }
+        
+                .sold-room {
+                    background-color: #d5d8dc !important;
+                }

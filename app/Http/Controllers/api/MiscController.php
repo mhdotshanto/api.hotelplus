@@ -155,4 +155,30 @@ class MiscController extends Controller
         return response()->json($options);
     }
 
+    public function getStatusCounts(Request $request)
+    {
+        //dd("this is getStatusCounts");
+        $statuses = ['all','tentative', 'guaranteed', 'checkedin', 'to-checkin', 'checkin-missed', 'checkedout','to-checkout','checkout-missed', 'cancelled', 'postponed'];
+        
+        $counts = [];
+        $all_count = 0;
+        foreach ($statuses as $status) {
+           if($status == 'all') continue;
+           if($status == 'to-checkin'){
+                $counts[$status] = SaleRoom::onArrivalGuests()->count()??0;     
+           } else if ($status == 'checkin-missed') {
+                $counts[$status] = SaleRoom::checkinMissedGuests()->count() ?? 0;
+            }
+           else if($status == 'to-checkout'){
+                $counts[$status] = SaleRoom::onDepartureGuests()->count()??0;
+           } else if($status == 'checkout-missed'){
+               $counts[$status] = SaleRoom::checkoutMissedGuests()->count()??0;
+           } else {
+               $counts[$status] = SaleRoom::where('status', $status)->count()??0;
+           }
+            $all_count += $counts[$status];
+        }
+        $counts['all'] = $all_count;
+        return response()->json($counts);
+    }   
 }
