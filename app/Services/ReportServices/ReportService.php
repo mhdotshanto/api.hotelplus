@@ -567,4 +567,13 @@ class ReportService
             'total_balance' => $total_net_price,
         ];
     }
+    
+    public function getMoneyReceiptData($saleId){
+       $data =  AccVoucher::with('saleRoom', 'receiver')->where('id', $saleId)
+            ->where('payment_method', '!=', 'N/A')
+            ->orderBy('created_at', 'ASC')
+            ->first();
+            //dd($data);
+        return $data;
+    }
 }

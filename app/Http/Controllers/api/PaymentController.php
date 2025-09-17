@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 class PaymentController extends Controller
 {
     public function makeAPayment(Request $request, PaymentService $paymentService) {
-
+//dd($request->all());
         try {
             DB::beginTransaction();
             $validated = $request->validate([
@@ -23,8 +23,8 @@ class PaymentController extends Controller
                 'reference_number'  => 'required_if:payment_method,card,bkash,nagad,rocket,bank|string|max:255',
                 'platform_id'       => 'required_if:payment_method,card,bkash,nagad,rocket,bank|numeric|exists:acc_banks,id',
                 'party_id'          => 'required_if:payment_method,party|exists:acc_parties,id',
-                'notes'             => 'nullable|string',
-                'staff_id'          => 'nullable|numeric|exists:users,id',
+                'notes'             => 'nullable|string',               
+                'received_by'       => 'nullable|numeric|exists:users,id',
             ]);
 
             if (in_array($validated['payment_method'], ['card', 'bank', 'bkash', 'nagad', 'rocket'])) {
@@ -43,7 +43,7 @@ class PaymentController extends Controller
                 amount: $validated['amount'],
                 bankId: $validated['platform_id']??0,
                 partyId: $validated['party_id']??0,
-                receiverId: $validated['staff_id']??0,
+                receiverId: $validated['received_by']?auth()->id():0,
                 note: $validated['notes']??null,
                 referenceNumber: $validated['reference_number'] ?? null,
                 paymentMethod: $validated['payment_method'],

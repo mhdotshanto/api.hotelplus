@@ -98,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(ConfigController::class)->group(function () {
         Route::get('config', 'index');
         Route::post('config-update/{config}', 'update');
+        Route::get('application-configs', 'getApplicationConfigs');
     });
 
     Route::controller(SaleRoomController::class)->group(function () {
@@ -114,8 +115,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('checkout/{saleRoom}', 'updateToCheckOut');
         Route::get('reservation-list', 'reservationList');
         Route::get('get-voucher-list', 'getVoucherList');
+        Route::get('get-money-receipts', 'getMoneyReceipts');
         Route::get('get-ledger-list', 'getLedgerListBySaleId');
         Route::post('discard-changes/{sale_id}', 'discardChanges');
+        
     });
 
     Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
@@ -135,6 +138,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('full-sale-cancellation/{saleRoom}', 'fullSaleCancellation');
         Route::post('refund-and-cancel-reservation/{saleRoom}', 'refundAndCancelReservation');
     });
+    Route::get('money-receipt-authenticated/{id}', [ReportController::class, 'printMoneyReceiptAuthenticated'])->name('money-receipt-authenticated');
+    Route::post('reservation/send-mail', [ReportController::class, 'sendReservationConfirmationMail'])->name('send.reservation.confirmation.mail');
+    Route::post('ledger/send-mail', [ReportController::class, 'sendLedgerMail'])->name('send.ledger.mail');
 });
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
 Route::get('reservation', [ReportController::class, 'printReservationDetail'])->name('reservation');
@@ -146,5 +152,7 @@ Route::get('inhouse-guest', [ReportController::class, 'inhouseGuestReport'])->na
 Route::get('arrival-guest', [ReportController::class, 'arrivalGuestReport'])->name('arrival-guest-report');
 Route::get('all-guests', [ReportController::class, 'allGuestReport'])->name('all-guest-report');
 Route::get('guest-report-by-date', [ReportController::class, 'guestReportByDate'])->name('guest-report-by-date');
+Route::get('money-receipt/{id}', [ReportController::class, 'printMoneyReceipt'])->name('money-receipt');
+
 
 

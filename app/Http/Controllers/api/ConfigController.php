@@ -5,9 +5,10 @@ namespace App\Http\Controllers\api;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Config;
-
+use App\Traits\Formatter;
 class ConfigController extends Controller
 {
+    use Formatter;
     public function index()
     {
         return response()->json(Config::all());
@@ -44,6 +45,10 @@ class ConfigController extends Controller
             'value' => $validated['value'],
         ]);
         return response()->json(['success' => true, 'message' => 'Config updated successfully',]);
+    }
+    public function getApplicationConfigs(){
+        $applicationConfigs = config('ahits');
+        return $this->withSuccess("Success",$applicationConfigs);
     }
 }
 
