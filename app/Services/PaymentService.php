@@ -179,14 +179,16 @@ class PaymentService
         $this->ledgerEntry(
             ledgerType: LedgerType::SALE,
             accType: AccType::SALE,
-            voucher: $billingVoucher
+            voucher: $billingVoucher,
+            entryType: "debit"
         );
 
         //general ledger entry (acc_type:acc_head)
         $this->ledgerEntry(
             ledgerType: LedgerType::GENERAL,
             accType: AccType::ACC_HEAD,
-            voucher: $billingVoucher
+            voucher: $billingVoucher,
+            entryType: "debit"
         );
 
         $saleRoom->is_confirmed = true;
@@ -436,6 +438,8 @@ class PaymentService
         );
     }
 
+
+
     public function getPaymentSummary($saleId)
     {
         $totals = AccLedger::where('type', 'sale')
@@ -446,6 +450,46 @@ class PaymentService
             "total_paid" => (float) $totals->total_credit ?? 0,
             "total_due"  => (float) ($totals->total_debit ?? 0) - $totals->total_credit,
         ]);
+    }
+
+    public function adjustInitialLedges(
+        int $saleId,
+        string $amountStatus,
+        string $amount
+    ) {
+        if (!in_array($amountStatus, ['increased', 'decreased', 'no_change'], true)) throw new \InvalidArgumentException("Invalid entry type: {$amountStatus}");
+
+        $billingVoucher = $this->createVoucher(
+            voucherType: AccVoucherType::BILL,
+            saleId: $saleId,
+            amount: $amount
+        );
+
+        $this->insertCashbookEntry(
+            accType: AccType::ACC_HEAD,
+            voucher: $billingVoucher,
+            entryType: $amountStatus == "increased" ? "debit" : "credit"
+        );
+
+        $this->insertCashbookEntry(
+            accType: AccType::SALE,
+            voucher: $billingVoucher,
+            entryType: $amountStatus == "increased" ? "debit" : "credit"
+        );
+
+        $this->ledgerEntry(
+            ledgerType: LedgerType::SALE,
+            accType: AccType::SALE,
+            voucher: $billingVoucher,
+            entryType: $amountStatus == "increased" ? "debit" : "credit"
+        );
+
+        $this->ledgerEntry(
+            ledgerType: LedgerType::GENERAL,
+            accType: AccType::ACC_HEAD,
+            voucher: $billingVoucher,
+            entryType: $amountStatus == "increased" ? "debit" : "credit"
+        );
     }
 
 }
