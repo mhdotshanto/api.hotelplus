@@ -43,10 +43,12 @@ class RoomCategoryController extends Controller
     {
         $validatedData = $request->validate([
             'name' => 'required|max:40|unique:room_categories,name',
-            'rate' => 'nullable',
-            'rate_xb' => 'nullable',
-            'is_active' => 'nullable',
+//            'rate' => 'nullable|numeric',
+//            'rate_xb' => 'nullable|numeric',
+            'is_active' => 'nullable|boolean',
         ]);
+
+//        return response()->json($validatedData);
 
         RoomCategory::create($validatedData);
 
@@ -62,8 +64,8 @@ class RoomCategoryController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|max:40|unique:room_categories,name,' . $item->id,
-            'rate' => 'nullable',
-            'rate_xb' => 'nullable',
+//            'rate' => 'nullable',
+//            'rate_xb' => 'nullable',
             'is_active' => 'nullable',
         ]);
 
