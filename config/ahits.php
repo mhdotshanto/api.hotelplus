@@ -1,7 +1,12 @@
 <?php
 date_default_timezone_set("Asia/Dhaka");
 return [
-    'property'=>["name"=>"Cox Vacation", "location"=>"Cox's Bazar"],
+    'property'=>[
+        "name"=>"Cox Vacation", 
+        "location"=>"Cox's Bazar",
+        "email"=> "info@dhakahome.com",
+        "mobile"=> "tel:BD:01877-721579(Sales)&01742-839596(Rent)|US:702-202-8214"
+        ],
 	'serverid'=>2,
     'servicecharge'=>10,
     'vat'=>15,
@@ -53,4 +58,18 @@ return [
     'isGroupReport'=>false,
     'isRemoteLogin'=>true,
     'remoteLoginLink'=>'https://dh.ahpms.net/api',
+    'email'=>[
+        'reservation_confirmation'=>[
+            'subject'=> 'Reservation Confirmation - RS_CODE',
+            'message'=> 'Your Reservation RS_CODE is Confirmed! Please Check  Attachment'
+        ],
+        'ledger' => [
+            'subject' => 'Ledger Report - RS_CODE',
+            'message' => 'Ledger Generated For RS_CODE! Please Check  Attachment'
+        ],
+        'money_receipt' => [
+            'subject' => 'Money Receipt - MR_CODE',
+            'message' => 'Money Receipt Generated For MR_CODE! Please Check  Attachment'
+        ]
+    ]
 ];

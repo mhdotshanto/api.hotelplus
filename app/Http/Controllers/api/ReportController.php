@@ -16,17 +16,23 @@ use App\Exports\ArrivalGuestExport;
 use App\Exports\AllGuestExport;
 use App\Exports\GuestByDateExport;
 use App\Models\Guest;
+use App\Services\CRM\EmailServices as CRMEmailServices;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Services\EmailServices;
+use App\Traits\Formatter;
 class ReportController extends Controller
 {
+    use Formatter;
     protected $mpdfService;
     protected $reportService;
-    public function __construct(MpdfService $mpdfService, ReportService $reportService)
+    protected $emailService;
+    public function __construct(MpdfService $mpdfService, ReportService $reportService,EmailServices $emailServices)
     {
         $this->mpdfService = $mpdfService;
         $this->reportService = $reportService;
+        $this->emailService = $emailServices;
     }
     public function ledgerReport(Request $request)
     {
@@ -145,7 +151,8 @@ class ReportController extends Controller
     }
     public function printReservationDetail(Request $request)
     {
-        // try {
+         try {
+            $name = "Reservation Confirmation";
             $validated = $request->validate([
                 'token' => 'required|string'
             ]);
@@ -157,28 +164,28 @@ class ReportController extends Controller
                     'message' => 'Token Not Found',
                 ], 400);
             };
-           
+            
             //dd($output);
             $data = $this->reportService->getReservationDetail($token);
 
             if ($data) {
-                $html = view('reports.reservation.pdf')->with(['data' => $data, 'title' => $data['name']])->render();
+                $html = view('reports.reservation.pdf')->with(['data' => $data, 'title' => $name])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
 
-                $this->mpdfService->mpdf($data['name']);
+                $this->mpdfService->mpdf($name);
                 $mpdf = $this->mpdfService->getMpdf();
                 $mpdf->SetHTMLHeader($header);
                 $mpdf->SetHTMLFooter($footer);
                 $mpdf->WriteHTML($html);
                 $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
             }
-        // } catch (\Exception $e) {
-        //     return response()->json([
-        //         'message' => 'Something Went Wrong!',
-        //         'error' => $e->getMessage()
-        //     ], 422);
-        // }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ], 422);
+        }
     }
     public function checkoutReport(Request $request)
     {
@@ -585,6 +592,45 @@ class ReportController extends Controller
             ], 422);
         }
     }
+    public function printMoneyReceipt($id)
+    {
+        //dd($id);
+        $data = $this->reportService->getMoneyReceiptData($id);        
+        $name = "Money Receipt - {$data->saleRoom->code}";
+        if ($data) {
+            $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();
+            $header = view('reports.layouts.pdf.header')->render();
+            $footer = view('reports.layouts.pdf.footer')->render();
+
+            $this->mpdfService->mpdf($name);
+            $mpdf = $this->mpdfService->getMpdf();
+            $mpdf->SetHTMLHeader($header);
+            $mpdf->SetHTMLFooter($footer);
+            $mpdf->WriteHTML($html);
+            $mpdf->Output("{$data->saleRoom->code}_Money_Receipt.pdf", 'I');
+            // return response($mpdf->Output("money-receipt-{$id}.pdf", "S"))
+            //     ->header('Content-Type', 'application/pdf')
+            //     ->header('Content-Disposition', 'attachment; filename="money-receipt-' . $id . '.pdf"')
+            //     ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        }
+    }
+    public function printMoneyReceiptAuthenticated($id)
+    {
+        $data = $this->reportService->getMoneyReceiptData($id);
+        $name = "Money Receipt - {$data->saleRoom->code}";
+        if ($data) {
+            $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();
+            $header = view('reports.layouts.pdf.header')->render();
+            $footer = view('reports.layouts.pdf.footer')->render();
+
+            $this->mpdfService->mpdf($name);
+            $mpdf = $this->mpdfService->getMpdf();
+            $mpdf->SetHTMLHeader($header);
+            $mpdf->SetHTMLFooter($footer);
+            $mpdf->WriteHTML($html);
+            return response($mpdf->Output("money-receipt-authenticated-{$id}.pdf", "S"))->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="money-receipt-authenticated' . $id . '.pdf"')->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        }
+    }
     public function handleLargePdf()
     {
         $this->mpdfService->mpdf("Large PDF");
@@ -706,5 +752,130 @@ class ReportController extends Controller
         $html.='</tbody></table>';
         $mpdf->WriteHTML($html);
         $mpdf->Output("LargePDF.pdf", 'I');
+    }
+
+    public function sendReservationConfirmationMail(Request $request)
+    {
+        try {
+            $name = "Reservation Confirmation";
+            $validated = $request->validate([
+                'sale_id' => 'required|integer',
+                'email' => 'required|email',
+                'subject' => 'required|string',
+                'message' => 'required|string',
+            ]);
+            $sale_query = SaleRoom::find($validated['sale_id']);
+           // dd($sale_query);
+           if($sale_query && !empty($sale_query->token)){
+                $data = $this->reportService->getReservationDetail($sale_query->token);
+                if ($data) {
+                    //dd($data);
+                    $html = view('reports.reservation.pdf')->with(['data' => $data, 'title' => $name])->render();
+                    $header = view('reports.layouts.pdf.header')->render();
+                    $footer = view('reports.layouts.pdf.footer')->render();
+                    $this->mpdfService->mpdf($name);
+                    $mpdf = $this->mpdfService->getMpdf();
+                    $mpdf->SetHTMLHeader($header);
+                    $mpdf->SetHTMLFooter($footer);
+                    $mpdf->WriteHTML($html);
+                    $pdfContent = $mpdf->Output("{$data['saleRoom']->code}.pdf", 'S');
+                    if (isset($data['saleRoom']) && !is_null($data['saleRoom'])) {
+                        $customer_name = "{$data['saleRoom']['guest_name_title']} {$data['saleRoom']['guest_name_first']} {$data['saleRoom']['guest_name_last']}";
+                        $customer_email = $data['saleRoom']['guest_email'];
+                        $mobile = $data['saleRoom']['guest_mobile'];
+                        $mailDetails = [
+                            'sender_name' => config('ahits.property.name'),
+                            'sender_mail' => config('ahits.property.email'),
+                            'sender_mobile' => config('ahits.property.mobile'),
+                            'sender_address' => config('ahits.property.location'),
+                            'customer_name' => $customer_name,
+                            'customer_email' => $customer_email,
+                            'subject' =>  $validated['subject'],
+                            'message' => $validated['message'],
+                            'pdfContent'=> $pdfContent,
+                            'pdfFileName' => "{$data['saleRoom']->code}.pdf",
+                            
+                        ];
+                        return $this->emailService->sendReservationMail($mailDetails);
+                    } else {
+                        return 0;
+                    }
+                    
+                        }
+                        }
+                     } catch (\Exception $ex) {
+                        return $this->withErrors($ex->getMessage());
+                    }
+                   
+
+        return response()->json(['success' => true]);
+    }
+    public function sendLedgerMail(Request $request)
+    {
+        try {
+            
+            $validated = $request->validate([
+                'sale_id' => 'required|integer',
+                'emailType'=>'required|string',
+                'mrId'=>'nullable|numeric',
+                'email' => 'required|email',
+                'subject' => 'required|string',
+                'message' => 'required|string',
+            ]);
+            $sale_query = SaleRoom::find($validated['sale_id']);
+            //dd($validated,$sale_query);
+
+           if($sale_query && !empty($sale_query->token)){
+                if($validated['emailType']==="money_receipt"){
+                    $data = $this->reportService->getMoneyReceiptData($validated['mrId']);
+                    $name = "Money Receipt - {$data->saleRoom->code}";
+                    if ($data) {
+                        $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();
+                    }
+                } elseif($validated['emailType']==="ledger"){
+                        $data = $this->reportService->getledgerData($sale_query->token);
+                        $name = "Ledger Report " . $data['saleRoom']->code ?? "";
+                        if ($data) {
+                            //dd($data);
+                            $html = view('reports.ledger.pdf')->with(['data' => $data, 'title' => $name])->render();
+                        }
+
+                }                
+                    $header = view('reports.layouts.pdf.header')->render();
+                    $footer = view('reports.layouts.pdf.footer')->render();
+                    $this->mpdfService->mpdf($name);
+                    $mpdf = $this->mpdfService->getMpdf();
+                    $mpdf->SetHTMLHeader($header);
+                    $mpdf->SetHTMLFooter($footer);
+                    $mpdf->WriteHTML($html);
+                    $pdfContent = $mpdf->Output("{$data['saleRoom']->code}.pdf", 'S');
+                    if (isset($data['saleRoom']) && !is_null($data['saleRoom'])) {
+                        $customer_name = "{$data['saleRoom']['guest_name_title']} {$data['saleRoom']['guest_name_first']} {$data['saleRoom']['guest_name_last']}";
+                        $customer_email = $data['saleRoom']['guest_email'];
+                        $mobile = $data['saleRoom']['guest_mobile'];
+                        $mailDetails = [
+                            'sender_name' => config('ahits.property.name'),
+                            'sender_mail' => config('ahits.property.email'),
+                            'sender_mobile' => config('ahits.property.mobile'),
+                            'sender_address' => config('ahits.property.location'),
+                            'customer_name' => $customer_name,
+                            'customer_email' => $customer_email,
+                            'subject' =>  $validated['subject'],
+                            'message' => $validated['message'],
+                            'pdfContent'=> $pdfContent,
+                            'pdfFileName' => "{$data['saleRoom']->code}.pdf",
+                            
+                        ];
+                        return $this->emailService->sendReservationMail($mailDetails);
+                    } else {
+                        return 0;
+                    }
+                        }
+                     } catch (\Exception $ex) {
+                        return $this->withErrors($ex->getMessage());
+                    }
+                   
+
+        return response()->json(['success' => true]);
     }
 }

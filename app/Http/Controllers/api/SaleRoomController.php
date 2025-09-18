@@ -30,10 +30,10 @@ use App\Models\SaleRoomAllocation;
 use App\Models\SaleRoomCategory;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use App\Services\ReportServices\MpdfService;
-
+use App\Traits\Formatter;
 class SaleRoomController extends Controller
 {
-    use SaleRoomTrait;
+    use SaleRoomTrait,Formatter;
     protected $mpdfService;
     protected $paymentService;
 
@@ -1507,6 +1507,11 @@ class SaleRoomController extends Controller
                 ->paginate($request->get('per_page'))
         );
     }
+    public function getMoneyReceipts(Request $request)
+    {
+        $query = AccVoucher::where('sale_room_id', $request->get('sale_id'))->where('payment_method', '!=', 'N/A')->orderBy('receipt_ref', 'DESC')->get();
+        return $this->withSuccess($query);       
+    }
 
     public function getLedgerListBySaleId(Request $request)
     {
@@ -1597,5 +1602,5 @@ class SaleRoomController extends Controller
             DB::rollBack();
             return  response()->json($e->getMessage());
         }
-    }
+    }  
 }

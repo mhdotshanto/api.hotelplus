@@ -39,4 +39,26 @@ class AccVoucher extends Model
     {
         return $this->hasMany(AccLedger::class, 'voucher_id', 'id');
     }
+
+
+    public function saleRoom()
+    {
+        return $this->belongsTo(SaleRoom::class, 'sale_room_id');
+    }
+    public function bank()
+    {
+        return $this->belongsTo(AccBank::class, 'acc_bank_id');
+    }
+    public function party()
+    {
+        return $this->belongsTo(AccParty::class, 'acc_party_id');
+    }
+    public function head()
+    {
+        return $this->belongsTo(AccHead::class, 'acc_head_id');
+    }
+    public function receiver()
+    {
+        return $this->belongsTo(User::class, 'receiver_id');
+    }
 }
