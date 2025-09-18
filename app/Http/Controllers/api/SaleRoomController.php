@@ -1124,9 +1124,6 @@ class SaleRoomController extends Controller
 
             $validated = $request->validate($this->saleRoomRules());
 
-//            return response()->json($validated);
-//            return response()->json(Carbon::createFromFormat('h:i A', $validated['payment_details']['etd'])->format('H:i:s'));
-
             // Load related temp data with category
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
@@ -1136,6 +1133,7 @@ class SaleRoomController extends Controller
                     }
                 ]);
             }])->findOrFail($validated['temp_id']);
+
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
@@ -1210,7 +1208,7 @@ class SaleRoomController extends Controller
         }
     }
 
-    public function updateSaleRoom(Request $request, $saleId)
+    public function updateSaleRoom(Request $request, $saleId, PaymentService $paymentService)
     {
         try {
             DB::beginTransaction();
@@ -1268,16 +1266,33 @@ class SaleRoomController extends Controller
             $sale->room_categories()->delete();
             $sale->sale_room_allocation()->delete();
 
-            if ($sale->price_sale != $priceSale) {
-                $voucher = AccVoucher::where('sale_room_id', $sale->id)->with('ledgers')->first();
-                if ($voucher) {
-                    AccLedger::where('voucher_id', $voucher->id)
-                        ->update([
-                            'debit'  => DB::raw("CASE WHEN debit > 0 THEN {$priceSale} ELSE debit END"),
-                            'credit' => DB::raw("CASE WHEN credit > 0 THEN {$priceSale} ELSE credit END"),
-                        ]);
-                }
+            $amount = 0;
+            $amountStatus = 'no_change';
+
+            if ($priceSale > $sale->price_sale) {
+                $amount = $priceSale - $sale->price_sale;
+                $amountStatus = 'increased';
+            } elseif ($priceSale < $sale->price_sale) {
+                $amount = $sale->price_sale - $priceSale;
+                $amountStatus = 'decreased';
             }
+
+            if ($amountStatus !== 'no_change') $paymentService->adjustInitialLedges(
+                saleId: $saleId,
+                amountStatus: $amountStatus,
+                amount: $amount
+            );
+
+//            if ($sale->price_sale != $priceSale) {
+//                $voucher = AccVoucher::where('sale_room_id', $sale->id)->with('ledgers')->first();
+//                if ($voucher) {
+//                    AccLedger::where('voucher_id', $voucher->id)
+//                        ->update([
+//                            'debit'  => DB::raw("CASE WHEN debit > 0 THEN {$priceSale} ELSE debit END"),
+//                            'credit' => DB::raw("CASE WHEN credit > 0 THEN {$priceSale} ELSE credit END"),
+//                        ]);
+//                }
+//            }
 
             //UPDATE SaleRoom
             $sale->update([
@@ -1472,7 +1487,7 @@ class SaleRoomController extends Controller
         $query = SaleRoom::with('note');
         if($request->filled('status') && $request->status != 'all'){
             $query->where('status', $request->status);
-        }        
+        }
         $query ->orderBy('id', 'desc');
         // dd($query->toSql());
         if ($request->filled('search')) {
