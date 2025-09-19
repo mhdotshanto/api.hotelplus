@@ -1525,7 +1525,7 @@ class SaleRoomController extends Controller
     public function getMoneyReceipts(Request $request)
     {
         $query = AccVoucher::where('sale_room_id', $request->get('sale_id'))->where('payment_method', '!=', 'N/A')->orderBy('receipt_ref', 'DESC')->get();
-        return $this->withSuccess($query);       
+        return $this->withSuccess($query);
     }
 
     public function getLedgerListBySaleId(Request $request)
@@ -1617,5 +1617,5 @@ class SaleRoomController extends Controller
             DB::rollBack();
             return  response()->json($e->getMessage());
         }
-    }  
+    }
 }
