@@ -136,6 +136,7 @@ class ReportService
             $roomTypeRowSpan = 2;
         }
         $paymentSummary = $this->getPaymentSummary($id);
+        dd($paymentSummary);
         if ($paymentSummary) {
             $total_paid = $paymentSummary->getData()->total_paid;
             if ($total_paid > 0) {
@@ -188,27 +189,33 @@ class ReportService
                 500
             );
         }
+   
         $categorySummaryCollection = collect($data->room_categories)
             ->where('is_xb', 0)
-            ->groupBy('category_id')
-            ->map(function ($items, $categoryId) {
+            ->groupBy(function ($item) {
+                return $item->category_id . '-' . $item->bed;
+            })
+            ->map(function ($items, $key) {
                 $totalQty = $items->sum('qty');
                 $first = $items->first();
                 $rateSale = (float) ($first->rate_sale ?? 0);
                 $categoryName = $first->category->name ?? 'Unknown';
 
                 $amount = $rateSale * $totalQty;
-
                 return [
                     'category_name' => $categoryName,
+                    'bed' => $first->bed,
                     'rate_sale' => $rateSale,
                     'qty' => $totalQty,
                     'amount' => $amount,
                 ];
             });
+
         $categorySummaryCollectionForExtraBed = collect($data->room_categories)
             ->where('is_xb', 1)
-            ->groupBy('category_id')
+            ->groupBy(function ($item) {
+                return $item->category_id . '-' . $item->bed;
+            })
             ->map(function ($items, $categoryId) {
                 $totalQty = $items->sum('qty');
                 $first = $items->first();
@@ -219,13 +226,14 @@ class ReportService
 
                 return [
                     'category_name' => $categoryName,
+                    'bed' => $first->bed,
                     'rate_sale' => $rateSale,
                     'qty' => $totalQty,
                     'amount' => $amount,
                 ];
             });
         $categorySummaryStringWithoutXB = $categorySummaryCollection->map(function ($item) {
-            return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
+            return "{$item['category_name']}-{$item['bed']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
         })->implode(', ');
         $totalQty = $categorySummaryCollection->sum('qty');
 
@@ -264,7 +272,7 @@ class ReportService
             'totalXbQty' => $totalXbQty,
             'roomTypeRowSpan' => $roomTypeRowSpan,
             'totalAmount' => $totalAmount,
-            'totalPaid' => 0.00,
+            'totalPaid' => $total_paid??0.00,
             'totalDue' => $total_due,
         ];
         return $data;

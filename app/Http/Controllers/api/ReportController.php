@@ -151,6 +151,7 @@ class ReportController extends Controller
     }
     public function printReservationDetail(Request $request)
     {
+        //dd($request->all());
          try {
             $name = "Reservation Confirmation";
             $validated = $request->validate([
