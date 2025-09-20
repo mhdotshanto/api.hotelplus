@@ -136,7 +136,7 @@ class ReportService
             $roomTypeRowSpan = 2;
         }
         $paymentSummary = $this->getPaymentSummary($id);
-        dd($paymentSummary);
+       // dd($paymentSummary);
         if ($paymentSummary) {
             $total_paid = $paymentSummary->getData()->total_paid;
             if ($total_paid > 0) {
