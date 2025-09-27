@@ -133,12 +133,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(\App\Http\Controllers\api\PaymentController::class)->group(function () {
         Route::post('make-a-payment', 'makeAPayment');
         Route::post('refund', 'refund');
+        Route::post('tip', 'tip');
         Route::post('adjust-or-discount-sale/{saleRoom}', 'adjustOrDiscountSale');
         Route::get('payments-summery/{saleId}', 'getPaymentSummary');
         Route::post('full-sale-cancellation/{saleRoom}', 'fullSaleCancellation');
         Route::post('refund-and-cancel-reservation/{saleRoom}', 'refundAndCancelReservation');
     });
-    Route::get('money-receipt-authenticated/{id}', [ReportController::class, 'printMoneyReceiptAuthenticated'])->name('money-receipt-authenticated');
+    Route::get('money-receipt-authenticated/{mrNo}', [ReportController::class, 'printMoneyReceiptAuthenticated'])->name('money-receipt-authenticated');
     Route::post('reservation/send-mail', [ReportController::class, 'sendReservationConfirmationMail'])->name('send.reservation.confirmation.mail');
     Route::post('ledger/send-mail', [ReportController::class, 'sendLedgerMail'])->name('send.ledger.mail');
 });

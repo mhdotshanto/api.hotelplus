@@ -126,5 +126,8 @@ class SaleRoom extends Model
         return $query->where('status', 'checkedin')
             ->where('date_checkout', '<', Carbon::today()->format('Y-m-d'));
     }
-   
+    public function saleVouchers()
+    {
+        return $this->hasMany(AccVoucher::class, 'sale_room_id', 'id');
+    }
 }

@@ -20,6 +20,7 @@ class PaymentService
     const SALE_ROOM_ADJUST_HEAD_SLUG    = "sale-room-refund";
     const SALE_ROOM_DISCOUNT_HEAD_SLUG  = "sale-room-discount";
     const SALE_ROOM_CANCELLATION_CHARGE_HEAD_SLUG  = "sale-room-cancellation-charge";
+    const SALE_ROOM_TIP_HEAD_SLUG  = "sale-room-tip";
 
     public function getHeadIdBySlug(string $slug) {
         return AccHead::select('id')->where('slug', $slug)->first()->id;
@@ -68,6 +69,11 @@ class PaymentService
 
         if ($voucherType === AccVoucherType::CANCEL_RESERVATION) {
             $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_CANCELLATION_CHARGE_HEAD_SLUG);
+            $status = 'paid';
+        }
+
+        if ($voucherType === AccVoucherType::TIP) {
+            $accHeadId = $this->getHeadIdBySlug(self::SALE_ROOM_TIP_HEAD_SLUG);
             $status = 'paid';
         }
 
@@ -474,7 +480,7 @@ class PaymentService
         $this->insertCashbookEntry(
             accType: AccType::SALE,
             voucher: $billingVoucher,
-            entryType: $amountStatus == "increased" ? "debit" : "credit"
+            entryType: $amountStatus == "increased" ? "credit" : "debit"
         );
 
         $this->ledgerEntry(
@@ -490,6 +496,73 @@ class PaymentService
             voucher: $billingVoucher,
             entryType: $amountStatus == "increased" ? "debit" : "credit"
         );
+    }
+
+    public function reservationTipLedgersEntry(AccVoucher $voucher)
+    {
+        //sale ledger entry (acc_type:sale)
+        $this->ledgerEntry(
+            ledgerType: LedgerType::SALE,
+            accType: AccType::SALE,
+            voucher: $voucher,
+        );
+
+        //general ledger entry (acc_type:acc_head)
+        $this->ledgerEntry(
+            ledgerType: LedgerType::GENERAL,
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+        );
+
+        //if payment method is bank then insert a bank ledger (acc_type:bank)
+        if ($voucher->payment_method == 'bank') {
+            $this->ledgerEntry(
+                ledgerType: LedgerType::BANK,
+                accType: AccType::BANK,
+                voucher: $voucher,
+                entryType: 'credit'
+            );
+        }
+
+        //if payment method is party then insert a party ledger (acc_type:party)
+        if ($voucher->payment_method == 'party') {
+            $this->ledgerEntry(
+                ledgerType: LedgerType::PARTY,
+                accType: AccType::PARTY,
+                voucher: $voucher,
+                entryType: 'credit'
+            );
+        }
+    }
+
+    //insert reservation refund cashbook entry
+    public function reservationTipCashbookEntry(AccVoucher $voucher)
+    {
+        // cashbook entry for refund amount (acc_type:sale) credit side
+        $this->insertCashbookEntry(
+            accType: AccType::SALE,
+            voucher: $voucher,
+            entryType: 'credit',
+            isCash: $voucher->payment_method === 'cash',
+        );
+
+        // if bank payment then cashbook entry for refund amount (acc_type:bank) debit side
+        if ($voucher->payment_method == 'bank') {
+            $this->insertCashbookEntry(
+                accType: AccType::BANK,
+                voucher: $voucher,
+                entryType: 'debit',
+            );
+        }
+
+        // if party then cashbook entry  for refund amount (acc_type:party) debit side
+        if ($voucher->payment_method == 'party') {
+            $this->insertCashbookEntry(
+                accType: AccType::PARTY,
+                voucher: $voucher,
+                entryType: 'debit',
+            );
+        }
     }
 
 }

@@ -1277,7 +1277,7 @@ class SaleRoomController extends Controller
                 $amountStatus = 'decreased';
             }
 
-            if ($amountStatus !== 'no_change') $paymentService->adjustInitialLedges(
+            if ($amountStatus !== 'no_change' && $sale->is_confirmed) $paymentService->adjustInitialLedges(
                 saleId: $saleId,
                 amountStatus: $amountStatus,
                 amount: $amount
@@ -1453,7 +1453,7 @@ class SaleRoomController extends Controller
             DB::beginTransaction();
             $saleRoom->status = 'checkedin';
             $saleRoom->save();
-            //            if (!$saleRoom->is_confirmed)
+            if (!$saleRoom->is_confirmed)
             $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRoom);
             DB::commit();
             return response()->json(['message' => 'SaleRoom status updated to pending.']);
@@ -1530,11 +1530,13 @@ class SaleRoomController extends Controller
 
     public function getLedgerListBySaleId(Request $request)
     {
+        $query =  AccLedger::with('ledgerNote','voucher')->where('sale_room_id', $request->get('sale_id'))
+            ->where('type', 'sale')
+            ->with('head')
+            ->get();
+            //dd($query);
         return response()->json(
-            AccLedger::where('sale_room_id', $request->get('sale_id'))
-                ->where('type', 'sale')
-                ->with('head')
-                ->get()
+            $query
         );
     }
 

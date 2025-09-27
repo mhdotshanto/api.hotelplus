@@ -408,6 +408,7 @@ class ReportController extends Controller
             if ($validated) {
                 $output = $validated['output'];
                 $data = $this->reportService->getArrivalGuestData($validated);
+                //dd("test",$data);
                 $data['routes']['pdf'] = route(
                     'arrival-guest-report',
                     [
@@ -615,9 +616,9 @@ class ReportController extends Controller
             //     ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
         }
     }
-    public function printMoneyReceiptAuthenticated($id)
+    public function printMoneyReceiptAuthenticated($mrNo)
     {
-        $data = $this->reportService->getMoneyReceiptData($id);
+        $data = $this->reportService->getMoneyReceiptData($mrNo);
         $name = "Money Receipt - {$data->saleRoom->code}";
         if ($data) {
             $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();
@@ -629,7 +630,7 @@ class ReportController extends Controller
             $mpdf->SetHTMLHeader($header);
             $mpdf->SetHTMLFooter($footer);
             $mpdf->WriteHTML($html);
-            return response($mpdf->Output("money-receipt-authenticated-{$id}.pdf", "S"))->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="money-receipt-authenticated' . $id . '.pdf"')->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+            return response($mpdf->Output("money-receipt-authenticated-{$mrNo}.pdf", "S"))->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="money-receipt-authenticated' . $mrNo . '.pdf"')->header('Cache-Control', 'no-store, no-cache, must-revalidate');
         }
     }
     public function handleLargePdf()
@@ -818,7 +819,7 @@ class ReportController extends Controller
             $validated = $request->validate([
                 'sale_id' => 'required|integer',
                 'emailType'=>'required|string',
-                'mrId'=>'nullable|numeric',
+                'mrNo'=>'nullable|string',
                 'email' => 'required|email',
                 'subject' => 'required|string',
                 'message' => 'required|string',
@@ -828,7 +829,7 @@ class ReportController extends Controller
 
            if($sale_query && !empty($sale_query->token)){
                 if($validated['emailType']==="money_receipt"){
-                    $data = $this->reportService->getMoneyReceiptData($validated['mrId']);
+                    $data = $this->reportService->getMoneyReceiptData($validated['mrNo']);
                     $name = "Money Receipt - {$data->saleRoom->code}";
                     if ($data) {
                         $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();

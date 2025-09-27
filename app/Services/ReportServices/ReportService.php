@@ -35,13 +35,52 @@ class ReportService
 
     public function getPaymentSummary($saleId)
     {
-        $totals = AccLedger::where('type', 'sale')
+        $total_bills = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
-            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
+            ->whereIn('voucher_id', function ($q) use ($saleId) {
+                $q->select('id')
+                    ->from('acc_vouchers')
+                    ->where('sale_room_id', $saleId)
+                    ->where('type', 'bill');
+            })
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(debit)-SUM(credit) as total_bill_amount')
             ->first();
+        $total_payments = AccLedger::where('type', 'sale')
+            ->where('sale_room_id', $saleId)
+            ->whereIn('voucher_id', function ($q) use ($saleId) {
+                $q->select('id')
+                    ->from('acc_vouchers')
+                    ->where('sale_room_id', $saleId)
+                    ->whereIn('type', ['refund', 'payment']);
+            })
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_payment_amount')
+            ->first();
+        $totalTips = AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'tip')->selectRaw('SUM(amount) as total_tip_amount')->first();
+        $total_adjustment = AccLedger::where('type', 'sale')
+            ->where('sale_room_id', $saleId)
+            ->whereIn('voucher_id', function ($q) use ($saleId) {
+                $q->select('id')
+                    ->from('acc_vouchers')
+                    ->where('sale_room_id', $saleId)
+                    ->where('type', 'adjustment');
+            })
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_adjustment')
+            ->first();
+        // $typeWiseSummary = AccVoucher::where('sale_room_id', $saleId)
+        //     ->where('type', '!=', 'bill')->selectRaw('type,sum(amount) as total')->groupBy('type')->pluck('total','type');
+        //     $total_payment = $typeWiseSummary->get('payment',0);
+        //     $total_refund = $typeWiseSummary->get('refund',0);
+        //     $total_adjustment = $typeWiseSummary->get('adjustment',0);
         return response()->json([
-            "total_paid" => (float) $totals->total_credit ?? 0,
-            "total_due"  => (float) ($totals->total_debit ?? 0) - $totals->total_credit,
+            "total_bill" => (float) $total_bills->total_bill_amount,
+            "total_paid" => (float) $total_payments->total_payment_amount ?? 0,
+            "total_adjustment" => (float) $total_adjustment->total_adjustment,
+            "total_tip" => (float) $totalTips->total_tip_amount,
+            "total_due"  => (float) ($total_bills->total_bill_amount ?? 0) - (($total_payments->total_payment_amount ?? 0) + ($total_adjustment->total_adjustment ?? 0) + ($totalTips->total_tip_amount ?? 0)),
+            // "total_payment" => $total_payment,
+            // "total_refund"=> $total_refund,
+            // "total_adjustment"=> $total_adjustment                
         ]);
     }
     
@@ -271,31 +310,65 @@ class ReportService
             'totalRoomQty' => $totalQty,
             'totalXbQty' => $totalXbQty,
             'roomTypeRowSpan' => $roomTypeRowSpan,
-            'totalAmount' => $totalAmount,
+            'totalAmount' => $data->price_net,
             'totalPaid' => $total_paid??0.00,
             'totalDue' => $total_due,
         ];
         return $data;
    }
 
-   public function getCheckinData($params){    
-    $checkinData = SaleRoom::with([ 'sale_agent']);
-    if(isset($params['date_from'])){
-        $checkinData = $checkinData->where('date_checkin','>=',$params['date_from']);
-    }
-    
-    if(isset($params['date_to'])){
-        $checkinData = $checkinData->where('date_checkin','<=',$params['date_to']);
-    }
-   
-    if(isset($params['references'])){
-        $checkinData = $checkinData->whereIn('ref_id',$params['references']);
-    }
-    $checkinData = $checkinData->get();
-    $data_collection = collect($checkinData);
-    $total_rooms = $data_collection->sum('room_qty');
-    $total_gross_price = $data_collection->sum('price_gross');
-    $total_net_price = $data_collection->sum('price_net');
+   public function getCheckinData($params){
+    //dd($params);
+        $checkinData = SaleRoom::withSum(['saleVouchers as bill' => function ($q) {
+            $q->where('type', 'bill');
+        }], 'amount')
+            ->withSum(['saleVouchers as payment' => function ($q) {
+                $q->where('type', 'payment');
+            }], 'amount')
+            ->withSum(['saleVouchers as refund' => function ($q) {
+                $q->where('type', 'refund');
+            }], 'amount')
+            ->withSum(['saleVouchers as adjustment' => function ($q) {
+                $q->where('type', 'adjustment');
+            }], 'amount')
+            ->withSum(['saleVouchers as tip' => function ($q) {
+                $q->where('type', 'tip');
+            }], 'amount')
+            ->withCount('sale_room_allocation as total_rooms')
+            ->with(['sale_room_allocation:id,room_sale_id,room_number_id']);
+        if (isset($params['date_from'])) {
+            $checkinData = $checkinData->where('date_checkin', '>=', $params['date_from']);
+        }
+
+        if (isset($params['date_to'])) {
+            $checkinData = $checkinData->where('date_checkin', '<=', $params['date_to']);
+        }
+
+        if (isset($params['references'])) {
+            $checkinData = $checkinData->whereIn('ref_id', $params['references']);
+        }
+        $checkinData = $checkinData->get();
+        //dd($checkinData[0]);
+        $checkinData = $checkinData->map(function ($room) {
+                $room->balance = ($room->payment ?? 0)
+                    - ($room->refund ?? 0)
+                    + ($room->adjustment ?? 0)
+                    + ($room->tip ?? 0);
+                $room->due     = ($room->bill ?? 0) - $room->balance;
+                return $room;
+            });
+        //dd($checkinData[23])  ;
+        $total_rooms       = $checkinData->sum('room_qty');
+        $total_gross_price = $checkinData->sum('price_gross');
+        $total_discount    = $checkinData->sum('discount_amount');
+        $total_net_price   = $checkinData->sum('price_net');
+        $total_bill        = $checkinData->sum('bill');
+        $total_collection  = $checkinData->sum('payment');
+        $total_refund      = $checkinData->sum('refund');
+        $total_adjustment  = $checkinData->sum('adjustment');
+        $total_tip         = $checkinData->sum('tip');
+        $total_balance     = $checkinData->sum('balance'); 
+        $total_due         = $checkinData->sum('due');
     $sale_agents = $checkinData->pluck('sale_agent.name')   
     ->unique()                   
     ->implode(', ');  
@@ -307,9 +380,15 @@ class ReportService
            'total_gross_price' => $total_gross_price,
            'total_net_price' => $total_net_price,
            'sale_agents' => $sale_agents,
+            'total_discount'    => $total_discount ?? 0.00,
+            'total_bill'        => $total_bill,
+            'total_collection'  => $total_collection,
+            'total_refund'      => $total_refund,
+            'total_adjustment'  => $total_adjustment,
+            'total_tip'         => $total_tip,
+            'total_balance'     => $total_balance,
+            'total_due'         => $total_due,
         ];
-    //return $checkinData;
-    //dd($checkinData);
    }
 
    public function getCheckoutData($params){    
@@ -449,13 +528,42 @@ class ReportService
         //dd($today);
         $reportType = $params['reportType'];
         $roomSaleData = SaleRoom::select(
-        'sale_rooms.*',
-        DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
-        DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+            'sale_rooms.*',
+            DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
+            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers'),
+            DB::raw('COALESCE(p.payment, 0) as payment'),
+            DB::raw('COALESCE(v.refund, 0) as refund'),
+            DB::raw('COALESCE(a.adjustment, 0) as adjustment')
         )
-        ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')    
-        ->groupBy('sale_rooms.id');      
-       // dd($roomSaleData->toSql());
+            ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as payment 
+                         FROM acc_vouchers 
+                         WHERE type = 'payment' 
+                         GROUP BY sale_room_id) as p"),
+                'sale_rooms.id',
+                '=',
+                'p.sale_room_id'
+            )
+            ->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as refund 
+                         FROM acc_vouchers 
+                         WHERE type = 'refund' 
+                         GROUP BY sale_room_id) as v"),
+                'sale_rooms.id',
+                '=',
+                'v.sale_room_id'
+            )->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment 
+                         FROM acc_vouchers 
+                         WHERE type = 'adjustment' 
+                         GROUP BY sale_room_id) as a"),
+                'sale_rooms.id',
+                '=',
+                'a.sale_room_id'
+            )
+            ->groupBy('sale_rooms.id');
+
+        //dd("test",$roomSaleData->toSql());
        if(isset($reportType)){
             if($reportType=='inhouseGuest'){
             $roomSaleData = $roomSaleData->inhouseGuests();
@@ -478,6 +586,10 @@ class ReportService
         $total_gross_price = $roomSaleData->sum('price_gross');
         $total_discount = $roomSaleData->sum('discount_amount');
         $total_net_price = $roomSaleData->sum('price_net');
+        $total_collection = $roomSaleData->sum('payment');
+        $total_refund = $roomSaleData->sum('refund');
+        $total_adjustment = $roomSaleData->sum('adjustment');
+
     
         return [
             'roomSaleData'  => $roomSaleData,            
@@ -485,38 +597,131 @@ class ReportService
             'total_gross_price' => $total_gross_price,
             'total_discount' => $total_discount??0.00,
             'total_net_price' => $total_net_price,
-            'total_collection' => $total_net_price,
-            'total_refund' => 0.00,
-            'total_balance' => $total_net_price,
+            'total_collection' => $total_collection,
+            'total_refund' => $total_refund,
+            'total_adjustment' => $total_adjustment,
+            'total_balance' => $total_net_price -(($total_collection-$total_refund) + $total_adjustment),
             ];
+    }
+    public function getArrivalGuestInfo($params)
+    {
+        $roomSaleData = SaleRoom::withSum(['saleVouchers as bill' => function ($q) {
+            $q->where('type', 'bill');
+        }], 'amount')
+            ->withSum(['saleVouchers as payment' => function ($q) {
+                $q->where('type', 'payment');
+            }], 'amount')
+            ->withSum(['saleVouchers as refund' => function ($q) {
+                $q->where('type', 'refund');
+            }], 'amount')
+            ->withSum(['saleVouchers as adjustment' => function ($q) {
+                $q->where('type', 'adjustment');
+            }], 'amount')
+            ->withSum(['saleVouchers as tip' => function ($q) {
+                $q->where('type', 'tip');
+            }], 'amount')
+            ->withCount('saleRoomAllocations as total_rooms')
+            ->with(['saleRoomAllocations:id,room_sale_id,room_number_id'])
+            ->onArrivalGuests()
+            ->get()
+            ->map(function ($room) {
+                $room->balance = ($room->payment ?? 0)
+                    - ($room->refund ?? 0)
+                    + ($room->adjustment ?? 0)
+                    + ($room->tip ?? 0); 
+                $room->due     = ($room->bill ?? 0) - $room->balance;
+                return $room;
+            });
+      
+        $total_rooms       = $roomSaleData->sum('room_qty');
+        $total_gross_price = $roomSaleData->sum('price_gross');
+        $total_discount    = $roomSaleData->sum('discount_amount');
+        $total_net_price   = $roomSaleData->sum('price_net');
+        $total_bill        = $roomSaleData->sum('bill');
+        $total_collection  = $roomSaleData->sum('payment');
+        $total_refund      = $roomSaleData->sum('refund');
+        $total_adjustment  = $roomSaleData->sum('adjustment');
+        $total_tip         = $roomSaleData->sum('tip');
+        $total_balance     = $roomSaleData->sum('balance'); // ✅ tips now counted
+        $total_due         = $roomSaleData->sum('due');
+
+        return [
+            'roomSaleData'      => $roomSaleData,
+            'total_rooms'       => $total_rooms,
+            'total_gross_price' => $total_gross_price,
+            'total_discount'    => $total_discount ?? 0.00,
+            'total_net_price'   => $total_net_price,
+            'total_bill'        => $total_bill,
+            'total_collection'  => $total_collection,
+            'total_refund'      => $total_refund,
+            'total_adjustment'  => $total_adjustment,
+            'total_tip'         => $total_tip,
+            'total_balance'     => $total_balance,
+            'total_due'         => $total_due,
+        ];
     }
 
     public function getArrivalGuestData($params)
-    {        
+    {
         $roomSaleData = SaleRoom::select(
             'sale_rooms.*',
             DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
-            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
+            DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers'),
+            DB::raw('COALESCE(p.payment, 0) as payment'),
+            DB::raw('COALESCE(v.refund, 0) as refund'),
+            DB::raw('COALESCE(a.adjustment, 0) as adjustment')
         )
             ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
+            ->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as payment 
+                 FROM acc_vouchers 
+                 WHERE type = 'payment' 
+                 GROUP BY sale_room_id) as p"),
+                'sale_rooms.id',
+                '=',
+                'p.sale_room_id'
+            )
+            ->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as refund 
+                 FROM acc_vouchers 
+                 WHERE type = 'refund' 
+                 GROUP BY sale_room_id) as v"),
+                'sale_rooms.id',
+                '=',
+                'v.sale_room_id'
+            )
+            ->leftJoin(
+                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment 
+                 FROM acc_vouchers 
+                 WHERE type = 'adjustment' 
+                 GROUP BY sale_room_id) as a"),
+                'sale_rooms.id',
+                '=',
+                'a.sale_room_id'
+            )
             ->groupBy('sale_rooms.id');
-            $roomSaleData = $roomSaleData->onArrivalGuests();
 
+        $roomSaleData = $roomSaleData->onArrivalGuests();
+        //dd($roomSaleData->get());
         $roomSaleData = $roomSaleData->get();
+
         $total_rooms = $roomSaleData->sum('room_qty');
         $total_gross_price = $roomSaleData->sum('price_gross');
         $total_discount = $roomSaleData->sum('discount_amount');
         $total_net_price = $roomSaleData->sum('price_net');
-
+        $total_collection = $roomSaleData->sum('payment');
+        $total_refund = $roomSaleData->sum('refund');
+        $total_adjustment = $roomSaleData->sum('adjustment');
         return [
             'roomSaleData'  => $roomSaleData,
             'total_rooms' => $total_rooms,
             'total_gross_price' => $total_gross_price,
             'total_discount' => $total_discount ?? 0.00,
-            'total_net_price' => $total_net_price,
-            'total_collection' => $total_net_price,
-            'total_refund' => 0.00,
-            'total_balance' => $total_net_price,
+            'total_net_price' => $total_net_price ?? 0.00,
+            'total_collection' => $total_collection ?? 0.00,
+            'total_refund' => $total_refund ?? 0.00,
+            'total_adjustment' => $total_adjustment ?? 0.00,
+            'total_balance' => (($total_net_price+ $total_refund)-($total_collection + $total_adjustment)) ?? 0.00,
         ];
     }
     public function getGuestByDate($params)
@@ -576,12 +781,20 @@ class ReportService
         ];
     }
     
-    public function getMoneyReceiptData($saleId){
-       $data =  AccVoucher::with('saleRoom', 'receiver')->where('id', $saleId)
+    public function getMoneyReceiptData($mrNo){
+       $data =  AccVoucher::with('saleRoom', 'receiver')->where('receipt_ref', $mrNo)
             ->where('payment_method', '!=', 'N/A')
             ->orderBy('created_at', 'ASC')
             ->first();
-            //dd($data);
+        return $data;
+    }
+    public function getMoneyReceiptDataById($mrId)
+    {
+       // dd($mrId);
+        $data =  AccVoucher::with('saleRoom', 'receiver')->where('id', $mrId)
+            ->where('payment_method', '!=', 'N/A')
+            ->orderBy('created_at', 'ASC')
+            ->first();
         return $data;
     }
 }
