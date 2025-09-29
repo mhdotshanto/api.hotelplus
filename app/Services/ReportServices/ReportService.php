@@ -77,7 +77,7 @@ class ReportService
             "total_paid" => (float) $total_payments->total_payment_amount ?? 0,
             "total_adjustment" => (float) $total_adjustment->total_adjustment,
             "total_tip" => (float) $totalTips->total_tip_amount,
-            "total_due"  => (float) ($total_bills->total_bill_amount ?? 0) - (($total_payments->total_payment_amount ?? 0) + ($total_adjustment->total_adjustment ?? 0) + ($totalTips->total_tip_amount ?? 0)),
+            "total_due"  => (float) ($total_bills->total_bill_amount ?? 0) - (($total_payments->total_payment_amount ?? 0) + ($total_adjustment->total_adjustment ?? 0)),
             // "total_payment" => $total_payment,
             // "total_refund"=> $total_refund,
             // "total_adjustment"=> $total_adjustment                
@@ -352,8 +352,7 @@ class ReportService
         $checkinData = $checkinData->map(function ($room) {
                 $room->balance = ($room->payment ?? 0)
                     - ($room->refund ?? 0)
-                    + ($room->adjustment ?? 0)
-                    + ($room->tip ?? 0);
+                    + ($room->adjustment ?? 0);
                 $room->due     = ($room->bill ?? 0) - $room->balance;
                 return $room;
             });
@@ -627,8 +626,7 @@ class ReportService
             ->map(function ($room) {
                 $room->balance = ($room->payment ?? 0)
                     - ($room->refund ?? 0)
-                    + ($room->adjustment ?? 0)
-                    + ($room->tip ?? 0); 
+                    + ($room->adjustment ?? 0); 
                 $room->due     = ($room->bill ?? 0) - $room->balance;
                 return $room;
             });

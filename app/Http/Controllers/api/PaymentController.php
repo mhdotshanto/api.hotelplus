@@ -7,14 +7,17 @@ use App\Http\Controllers\Controller;
 use App\Models\AccLedger;
 use App\Models\AccVoucher;
 use App\Models\SaleRoom;
+use App\Models\SaleRoomCategory;
 use App\Models\SaleTip;
 use App\Services\PaymentService;
 use App\Services\ReportServices\ReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Traits\SaleRoomTrait;
+use App\Traits\Formatter;
 class PaymentController extends Controller
 {
+    use SaleRoomTrait, Formatter;
     private $reportService;
     public function __construct(ReportService $reportService){
         $this->reportService = $reportService;
@@ -123,7 +126,7 @@ class PaymentController extends Controller
     }
 
      public function tip(Request $request, PaymentService $paymentService) {
-       // dd(AccVoucherType::TIP,$request->all());
+        // dd(AccVoucherType::TIP,$request->all());
         try {
             DB::beginTransaction();
             $validated = $request->validate([
@@ -140,7 +143,20 @@ class PaymentController extends Controller
             ]);
             if (in_array($validated['payment_method'], ['card', 'bank', 'bkash', 'nagad', 'rocket'])) $validated['payment_method'] = 'bank';
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
-
+            // dd('sale room data..', $saleRecord);
+            $saleCategoryRecords = SaleRoomCategory::where('sale_id', $validated['sale_id'])->get();
+            $totalCategoryRateSale = $saleCategoryRecords->sum('rate_sale');
+            $totalTip = $validated['amount'];
+            //dd('total tip..',$totalTip);
+            $totalTipPer = $this->fixDecimal(($totalTip * 100) / $totalCategoryRateSale);
+            $updatedCategoryWithTipCalculation = collect($saleCategoryRecords)->map(function($item) use ($totalTipPer) {
+                $item['tip_per'] = $this->fixDecimal($totalTipPer);
+                $item['tip_amount'] = $this->fixDecimal(($item->rate_sale * $totalTipPer)/100);
+                $item['rate_net'] = $this->fixDecimal($item['rate_sale'] - ($item['adjustment_amount'] + $item['tip_amount']));
+                $item->save();
+                return $item;
+            });        
+            
             $voucher = $paymentService->createVoucher(
                 voucherType: AccVoucherType::TIP,
                 saleId: $saleRecord->id,
@@ -161,11 +177,7 @@ class PaymentController extends Controller
                 ]);                
                 $saleRecord->tip_amount  = $voucher->amount;               
                 $saleRecord->save();
-            }
-            // //insert reservation tip ledger entry
-            // $paymentService->reservationTipLedgersEntry($voucher);
-            // //insert reservation tip cash book entry
-            // $paymentService->reservationTipCashbookEntry($voucher);
+            }          
 
             DB::commit();
             return response()->json([
@@ -183,15 +195,28 @@ class PaymentController extends Controller
         SaleRoom $saleRoom,
         PaymentService $paymentService
     ) {
-        try {
-            DB::beginTransaction();
+        //dd($request->all());
+        // try {
+        //     DB::beginTransaction();
             $validatedData = $request->validate([
                 'amount'   => 'required|numeric',
                 'note'     => 'nullable|string|max:500',
                 'action'   => 'required|in:adjustment,discount',
                 'staff_id' => 'numeric|exists:users,id',
             ]);
-
+            $saleCategoryRecords = SaleRoomCategory::where('sale_id', $saleRoom->id)->get();
+            $totalCategoryRateSale = $saleCategoryRecords->sum('rate_sale');
+            $totalAdjustedAmount = $validatedData['amount'];
+            //dd('total tip..',$totalTip);
+            $totalAdjustedPer = $this->fixDecimal(($totalAdjustedAmount * 100) / $totalCategoryRateSale);
+            $updatedCategoryWithAdjustmentCalculation = collect($saleCategoryRecords)->map(function ($item) use ($totalAdjustedPer) {
+                $item['adjustment_per'] = $this->fixDecimal($totalAdjustedPer);
+                $item['adjustment_amount'] = $this->fixDecimal(($item->rate_sale * $totalAdjustedPer) / 100);
+                $item['rate_net'] = $this->fixDecimal($item['rate_sale'] - ($item['adjustment_amount'] + $item['tip_amount']));
+                $item->save();
+                return $item;
+            });
+//dd($updatedCategoryWithAdjustmentCalculation);
             $voucher = $paymentService->createVoucher(
                 voucherType: $validatedData['action'] == 'adjustment' ? AccVoucherType::ADJUSTMENT : AccVoucherType::DISCOUNT,
                 saleId: $saleRoom->id,
@@ -207,16 +232,16 @@ class PaymentController extends Controller
             $saleRoom->adjusted_amount  = $voucher->amount;
             $saleRoom->save();
 
-            DB::commit();
-            return response()->json([
-                'message' => 'processed successfully.',
-            ], 200);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
-        }
+        //     DB::commit();
+        //     return response()->json([
+        //         'message' => 'processed successfully.',
+        //     ], 200);
+        // } catch (\Throwable $e) {
+        //     DB::rollBack();
+        //     return response()->json([
+        //         'message' => $e->getMessage(),
+        //     ], 500);
+        // }
     }
 
     public function fullSaleCancellation(

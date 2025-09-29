@@ -49,7 +49,7 @@
                     <td style="text-align:right">{{bdt_format($data['total_balance'])}}</td>
                 </tr>                
         </tbody>
-    </table>
+        </table>
     </div>  
    
 </div>
