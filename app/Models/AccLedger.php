@@ -11,4 +11,11 @@ class AccLedger extends Model
     public function head() {
         return $this->hasOne(AccHead::class, 'id', 'acc_head_id');
     }
+    public function ledgerNote(){
+        return $this->hasOne(AccNote::class,'id','note_id');
+    }
+    public function voucher(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(AccVoucher::class, 'voucher_id', 'id');
+    }
 }
