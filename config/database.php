@@ -81,7 +81,27 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'mariadb_source' => [
+            'driver' => 'mariadb',
+            'host' => env('DB_SOURCE_HOST', '127.0.0.1'),
+            'port' => env('DB_SOURCE_PORT', '3307'),
+            'database' => env('DB_SOURCE_DATABASE', 'ahpms_lvl_demo'),
+            'username' => env('DB_SOURCE_USERNAME', 'root'),
+            'password' => env('DB_SOURCE_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+        ],
 
+        'mariadb_target' => [
+            'driver' => 'mariadb',
+            'host' => env('DB_TARGET_HOST', '127.0.0.1'),
+            'port' => env('DB_TARGET_PORT', '3307'),
+            'database' => env('DB_TARGET_DATABASE', 'htlpls_cv'),
+            'username' => env('DB_TARGET_USERNAME', 'root'),
+            'password' => env('DB_TARGET_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+        ],
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
