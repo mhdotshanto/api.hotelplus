@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Facades\DB;
+
+use function PHPUnit\Framework\isEmpty;
 
 class MigrateOldData extends Command
 {
@@ -119,13 +121,17 @@ class MigrateOldData extends Command
             if(in_array($oldUser->id, [2000000012, 2000000013, 2000000018])){
                 $userName = explode('@', $oldUser->email)[0];
             }
+            $email = $oldUser->email;
+            if($oldUser->id == 2000000017){
+                $email = 'info@arrowheadit.com';
+            }
            DB::connection('mariadb_target')->table('users')->insert([
                 'name' => $oldUser->name,
                 'user_name' => $userName,
                 'role' => 'admin',
                 'type' => 'user',
                 'status' => 'active',
-                'email' => $oldUser->email,
+                'email' => $email,
                 'phone' => $oldUser->contact,
                 'designation' => $oldUser->designation,
                 'password' => $oldUser->password,
