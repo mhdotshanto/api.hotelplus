@@ -2,7 +2,7 @@
 date_default_timezone_set("Asia/Dhaka");
 return [
     'property'=>[
-        "name"=>"Cox Vacation", 
+        "name"=>"Cox Vacation",
         "location"=>"Cox's Bazar",
         "email"=> "info@dhakahome.com",
         "mobile"=> "tel:BD:01877-721579(Sales)&01742-839596(Rent)|US:702-202-8214"
@@ -71,5 +71,7 @@ return [
             'subject' => 'Money Receipt - MR_CODE',
             'message' => 'Money Receipt Generated For MR_CODE! Please Check  Attachment'
         ]
-    ]
+    ],
+    'migration_status' => "pending", // pending or done
+    'truncate_before_migration' => true
 ];
