@@ -299,11 +299,13 @@ class PaymentService
     }
 
     public function reservationRefundLedgersEntry(AccVoucher $voucher) {
+
         //sale ledger entry (acc_type:sale)
         $this->ledgerEntry(
             ledgerType: LedgerType::SALE,
             accType: AccType::SALE,
             voucher: $voucher,
+            entryType: 'debit'
         );
 
         //general ledger entry (acc_type:acc_head)
@@ -311,6 +313,7 @@ class PaymentService
             ledgerType: LedgerType::GENERAL,
             accType: AccType::ACC_HEAD,
             voucher: $voucher,
+            entryType: 'debit'
         );
 
         //if payment method is bank then insert a bank ledger (acc_type:bank)

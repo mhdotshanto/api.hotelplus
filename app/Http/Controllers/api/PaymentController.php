@@ -33,7 +33,7 @@ class PaymentController extends Controller
                 'reference_number'  => 'required_if:payment_method,card,bkash,nagad,rocket,bank|string|max:255',
                 'platform_id'       => 'required_if:payment_method,card,bkash,nagad,rocket,bank|numeric|exists:acc_banks,id',
                 'party_id'          => 'required_if:payment_method,party|exists:acc_parties,id',
-                'notes'             => 'nullable|string',               
+                'notes'             => 'nullable|string',
                 'received_by'       => 'nullable|numeric|exists:users,id',
             ]);
 
@@ -83,6 +83,7 @@ class PaymentController extends Controller
     public function refund(Request $request, PaymentService $paymentService) {
         try {
             DB::beginTransaction();
+
             $validated = $request->validate([
                 'sale_id'           => 'required|numeric|exists:sale_rooms,id',
                 'payment_method'    => 'required|in:cash,card,bank,bkash,nagad,rocket,party',
@@ -111,6 +112,7 @@ class PaymentController extends Controller
 
             //insert reservation refund ledger entry
             $paymentService->reservationRefundLedgersEntry($voucher);
+
             //insert reservation refund cash book entry
             $paymentService->reservationRefundCashbookEntry($voucher);
 
