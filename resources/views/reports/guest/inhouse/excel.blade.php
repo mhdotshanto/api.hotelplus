@@ -2,7 +2,7 @@
 @section('content')
 <div class="fo-12 top-5">  
     <div class="mt-3">
-        <table class="table table-bordered border-primary">
+        <table class="table table-bordered border-default">
         <tbody>
             <tr class="ledger-header">
                 <th>SL#</th>
@@ -16,9 +16,10 @@
                 <th>NET PRICE</th>
                 <th>COLLECTION</th>
                 <th>REFUND</th>
+                <th>ADJUSTMENT</th>
                 <th>BALANCE</th>
             </tr>
-             @foreach ($data['roomSaleData'] as $item)
+            @foreach ($data['roomSaleData'] as $item)
                 <tr class="ledger-details">
                     <td tyle="text-align:center">{{$loop->iteration}}</td>
                     <td  style="text-align:left">{{$item->guest_name_title}} {{$item->guest_name_first}} {{$item->guest_name_last}}</td>
@@ -29,22 +30,24 @@
                     <td  style="text-align:right">{{bdt_format($item->price_gross)}}</td>
                     <td  style="text-align:right">{{bdt_format($item->discount_amount)}}</td>
                     <td  style="text-align:right">{{bdt_format($item->price_net)}}</td>
-                    <td  style="text-align:right">{{bdt_format($item->price_net)}}</td>
-                    <td style="text-align:right">{{bdt_format(0.00)}}</td>
-                    <td  style="text-align:right">{{bdt_format($item->price_net)}}</td>
+                    <td  style="text-align:right">{{bdt_format($item->payment)}}</td>
+                    <td style="text-align:right">{{bdt_format($item->refund)}}</td>
+                    <td style="text-align:right">{{bdt_format($item->adjustment)}}</td>
+                    <td  style="text-align:right">{{bdt_format($item->price_net - (($item->payment - $item->refund) + $item->adjustment))}}</td>
                 </tr>                
             @endforeach
                 <tr style="font-weight: bold;font-size: 16px;">
-                    <td colspan="6" style="text-align:left"><strong>Total:</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_gross_price'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_discount'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_net_price'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_collection'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_refund'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_balance'])}}</strong></td>
-                </tr>                   
+                    <td colspan="6" style="text-align:left">Total:</td>
+                    <td style="text-align:right">{{bdt_format($data['total_gross_price'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_discount'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_net_price'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_collection'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_refund'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_adjustment'])}}</td>
+                    <td style="text-align:right">{{bdt_format($data['total_balance'])}}</td>
+                </tr>                
         </tbody>
-    </table>
+        </table>
     </div>  
    
 </div>

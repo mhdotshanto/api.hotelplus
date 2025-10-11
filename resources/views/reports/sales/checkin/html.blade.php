@@ -1,3 +1,9 @@
+{{-- foreach ($roomSaleData as $room) {
+    echo $room->payment;     // total payments
+    echo $room->refund;      // total refunds
+    echo $room->adjustment;  // total adjustments
+    echo $room->tip;         // total tips
+} --}}
 @extends('reports.layouts.html.main')
 @section('content')
 <div class="fo-12 top-5">
@@ -30,8 +36,8 @@
                     <td width="20%" style="text-align:center">{{$item->room_qty}}</td>
                     <td width="20%" style="text-align:right">{{bdt_format($item->price_gross)}}</td>
                     <td width="20%" style="text-align:right">{{bdt_format($item->price_net)}}</td>
-                    <td width="20%" style="text-align:right">0.00</td>
-                    <td width="20%" style="text-align:right">0.00</td>
+                    <td width="20%" style="text-align:right">{{$item->due}}</td>
+                    <td width="20%" style="text-align:right">{{$item->tip}}</td>
                 </tr>                
             @endforeach
             <tr>
@@ -39,7 +45,7 @@
                     <td style="text-align:center"><strong>{{$data['total_rooms']}}</strong></td>
                     <td style="text-align:right"><strong>{{bdt_format($data['total_gross_price'])}}</strong></td>
                     <td style="text-align:right"><strong>{{bdt_format($data['total_net_price'])}}</strong></td>
-                    <td style="text-align:right"><strong>0.00</strong></td>
+                    <td style="text-align:right"><strong>{{bdt_format($data['total_due'])}}</strong></td>
                     <td style="text-align:right"><strong>0.00</strong></td>
                 </tr>                
         </tbody>

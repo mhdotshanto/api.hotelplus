@@ -155,6 +155,10 @@ trait SaleRoomTrait
                 $discountPerItem = $currentCategory['room']['percentage'];
                 $discountAmountItem = $grossRate * ($discountPerItem / 100);
                 $rateSale = $grossRate - $discountAmountItem;
+            } else {
+                $rateSale = $grossRate;
+                $discountAmountItem = 0.00;
+                $discountPerItem = 0.00;
             }
 
             $insertable[] = [
