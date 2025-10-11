@@ -1,5 +1,7 @@
 <?php
 
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 Route::get('/', function () {
@@ -24,3 +26,9 @@ Route::get('/db-migrate', function () {
         'message' => $messages,
     ]);
 });
+
+
+//Route::get('/test-sale-room-migration', function () {
+//   $sale_payments
+//   return response()->json();
+//});

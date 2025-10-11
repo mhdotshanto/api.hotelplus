@@ -16,7 +16,6 @@ use App\Http\Controllers\api\SaleRoomController;
 use App\Http\Controllers\api\GuestController;
 use App\Http\Controllers\api\ConfigController;
 use App\Http\Controllers\api\ReportController;
-use App\Http\Controllers\api\MiscController;
 
 Route::get('test-api', function () {
     return response()->json('working.....');
@@ -118,7 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('get-money-receipts', 'getMoneyReceipts');
         Route::get('get-ledger-list', 'getLedgerListBySaleId');
         Route::post('discard-changes/{sale_id}', 'discardChanges');
-        
+
     });
 
     Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
