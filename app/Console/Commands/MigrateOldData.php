@@ -20,8 +20,9 @@ class MigrateOldData extends Command
     {
         $config = Config::select('slug', 'value')->whereIn('slug', ['vat', 'service-charge'])->get()->pluck('value', 'slug')->toArray();
         $vat_amount = $amount * ($config['vat'] / 100);
+        $amount = $amount + $vat_amount;
         $service_charge = $amount * ($config['service-charge'] / 100);
-        return $amount + $vat_amount + $service_charge;
+        return $amount + $service_charge;
     }
 
     // Generate short name from room name
@@ -100,7 +101,7 @@ class MigrateOldData extends Command
         DB::connection('mariadb_target')->statement('SET FOREIGN_KEY_CHECKS=0;');
 
         if (config('ahits.truncate_before_migration')){
-            $tablesToTruncate = ['room_categories', 'room_floors', 'room_names', 'room_numbers', 'users', 'guests', 'sale_rooms'];
+            $tablesToTruncate = ['room_categories', 'room_floors', 'room_names', 'room_numbers', 'users', 'guests', 'sale_rooms', 'sale_room_allocations'];
             foreach ($tablesToTruncate as $table) DB::connection('mariadb_target')->table($table)->truncate();
         }
 
@@ -324,6 +325,8 @@ class MigrateOldData extends Command
                 ),
                 'created_at',
                 'isxb',
+                'date',
+                'status'
             )
             ->groupBy('refid')
             ->get();
@@ -347,6 +350,20 @@ class MigrateOldData extends Command
                     'room_categories.name as category_name',
                 )
                 ->get();
+
+            if (in_array($record->status, ['TENTATIVE', 'GUARANTEED', 'CHECKIN'])) {
+                foreach ($rooms_from_target_db as $room) {
+                    DB::connection('mariadb_target')->table('sale_room_allocations')->insert([
+                        "room_sale_id" => $this->getOriginalSaleId($record->refid),
+                        "room_number_id" => $room->room_number_id,
+                        "room_category_id" => $room->category_id,
+                        "room_name_id" => $room->room_name_id,
+                        "bed" => $room->bed,
+                        "date" => $record->date,
+                        "is_xb" => $record->isxb,
+                    ]);
+                }
+            }
 
             $grouped = $rooms_from_target_db->groupBy(function ($item) {
                 return "{$item->category_name} | {$item->bed}";
@@ -378,14 +395,14 @@ class MigrateOldData extends Command
                     'discount_per' => $discountPerItem,
                     'discount_amount' => $discountAmountItem,
 
+                    'rate_sale' => $rateSale,
+
                     'adjustment_per' => $originalPercentage->adjusted_per,
                     'adjustment_amount' => $adjustmentAmount,
 
-                    'rate_sale' => $rateSale,
-
                     'tip_per' => $originalPercentage->tip_per,
                     'tip_amount' => $tipAmount,
-                    'rate_net' => 0,
+                    'rate_net' => ($rateSale - $tipAmount - $adjustmentAmount),
                 ]);
             }
         }
