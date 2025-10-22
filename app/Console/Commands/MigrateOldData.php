@@ -2,7 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AccVoucherType;
 use App\Models\Config;
+use App\Models\SaleRoom;
+use App\Services\PaymentService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +95,39 @@ class MigrateOldData extends Command
             ->first();
     }
 
+    private function getTotalPaidAmountForSale($saleId)
+    {
+        $total = DB::connection('mariadb_source')
+            ->table('acc_payments')
+            ->where('reservationid', $saleId)
+            ->sum('amount');
+        $this->info($saleId);
+        return $total ?? 0;
+    }
+
+
+    private function insertSalePaymentRecord(int $saleRecordId) {
+        $saleRecord = SaleRoom::find($saleRecordId);
+        $paymentService = new PaymentService();
+        if(!$saleRecord->is_confirmed) $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRecord);
+        $voucher = $paymentService->createVoucher(
+            voucherType: AccVoucherType::PAYMENT,
+            saleId: $saleRecord->id,
+            amount: $this->getTotalPaidAmountForSale($saleRecord->oid),
+            bankId: $validated['platform_id']??0,
+            partyId: $validated['party_id']??0,
+            receiverId: 1,
+            note: null,
+            referenceNumber: null,
+            paymentMethod: 'cash',
+        );
+        //insert reservation payment ledger entry
+        $paymentService->reservationPaymentLedgersEntry($voucher);
+
+        //insert reservation payment cash book entry
+        $paymentService->reservationPaymentCashBookEntry($voucher);
+    }
+
     public function handle()
     {
         if (config('ahits.migration_status') == 'done'){
@@ -101,7 +137,18 @@ class MigrateOldData extends Command
         DB::connection('mariadb_target')->statement('SET FOREIGN_KEY_CHECKS=0;');
 
         if (config('ahits.truncate_before_migration')){
-            $tablesToTruncate = ['room_categories', 'room_floors', 'room_names', 'room_numbers', 'users', 'guests', 'sale_rooms', 'sale_room_allocations'];
+            $tablesToTruncate = [
+                'room_categories',
+                'room_floors',
+                'room_names',
+                'room_numbers',
+                'users',
+                'guests',
+                'sale_rooms',
+                'sale_room_allocations',
+                'acc_vouchers',
+                'acc_ledgers'
+            ];
             foreach ($tablesToTruncate as $table) DB::connection('mariadb_target')->table($table)->truncate();
         }
 
@@ -259,7 +306,9 @@ class MigrateOldData extends Command
 
         $sales_record_from_source = DB::connection('mariadb_source')->table('room_sales')->get();
         foreach ($sales_record_from_source as $record) {
-            DB::connection('mariadb_target')->table('sale_rooms')->insert([
+            $sale_room_id = DB::connection('mariadb_target')
+                ->table('sale_rooms')
+                ->insertGetId([
                 'code'                  => $record->reservation,
                 'token'                 => encrypt($record->reservation),
                 'guest_id'              => $this->getOriginalGuestId(oid: $record->guestid),
@@ -306,12 +355,13 @@ class MigrateOldData extends Command
                     : null,
                 'date_to_confirm'       => $record->confirmationdate,
                 'status'                => strtolower($record->status),
-                'is_confirmed'          => 1,
+                'is_confirmed'          => 0,
                 'is_room_allocated'     => 1,
                 'created_at'            => $record->created_at,
                 'updated_at'            => $record->updated_at,
                 'oid'                   => $record->refid,
             ]);
+            $this->insertSalePaymentRecord($sale_room_id);
         }
 
         $sales_record_from_source = DB::connection('mariadb_source')
