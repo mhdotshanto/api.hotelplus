@@ -27,8 +27,11 @@ Route::get('/db-migrate', function () {
     ]);
 });
 
-
-//Route::get('/test-sale-room-migration', function () {
-//   $sale_payments
-//   return response()->json();
-//});
+Route::get('/test-sale-room-migration', function () {
+   $sale_payments = DB::connection('mariadb_source')
+       ->table('acc_payments')
+       ->where('reservationid', 2000000001)
+//       ->sum('amount')
+       ->get();
+   return response()->json($sale_payments);
+});

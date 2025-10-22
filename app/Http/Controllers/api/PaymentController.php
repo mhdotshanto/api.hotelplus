@@ -22,6 +22,7 @@ class PaymentController extends Controller
     public function __construct(ReportService $reportService){
         $this->reportService = $reportService;
     }
+
     public function makeAPayment(Request $request, PaymentService $paymentService) {
 //dd($request->all());
         try {
@@ -58,7 +59,7 @@ class PaymentController extends Controller
                 referenceNumber: $validated['reference_number'] ?? null,
                 paymentMethod: $validated['payment_method'],
             );
-            
+
             //insert reservation payment ledger entry
             $paymentService->reservationPaymentLedgersEntry($voucher);
 
@@ -157,8 +158,8 @@ class PaymentController extends Controller
                 $item['rate_net'] = $this->fixDecimal($item['rate_sale'] - ($item['adjustment_amount'] + $item['tip_amount']));
                 $item->save();
                 return $item;
-            });        
-            
+            });
+
             $voucher = $paymentService->createVoucher(
                 voucherType: AccVoucherType::TIP,
                 saleId: $saleRecord->id,
@@ -176,10 +177,10 @@ class PaymentController extends Controller
                     "name" =>$validated['name'],
                     "contact_no" =>$validated['contact_no'],
                     "note" =>$validated['notes'],
-                ]);                
-                $saleRecord->tip_amount  = $voucher->amount;               
+                ]);
+                $saleRecord->tip_amount  = $voucher->amount;
                 $saleRecord->save();
-            }          
+            }
 
             DB::commit();
             return response()->json([
@@ -410,7 +411,7 @@ class PaymentController extends Controller
 
                 // "total_payment" => $total_payment,
                 // "total_refund"=> $total_refund,
-                // "total_adjustment"=> $total_adjustment                
+                // "total_adjustment"=> $total_adjustment
             ]);
     }
 
