@@ -60,7 +60,7 @@ class RoomNumberController extends Controller
             'category_id' => 'required|exists:room_categories,id',
             'room_name_id' => 'required|exists:room_names,id',
             'floor_id' => 'required|exists:room_floors,id',
-            'bed' => 'nullable|in:SGL,DBL,TWN,TPL,4 BED',
+            'bed' => 'nullable|in:SGL,DBL,2 DBL,3 DBL,TWN,CPL,TPL',
             'is_active' => 'required|boolean',
             'is_clean' => 'nullable|boolean',
         ]);
@@ -170,7 +170,7 @@ class RoomNumberController extends Controller
             'room_name_id' => 'required|exists:room_names,id',
             'floor_id' => 'required|exists:room_floors,id',
             'name' => 'required|max:10|unique:room_numbers,name,' . $item->id,
-            'bed' => 'nullable|in:SGL,DBL,TWN,TPL,4 BED',
+            'bed' => 'nullable|in:SGL,DBL,2 DBL,3 DBL,TWN,CPL,TPL',
             'is_active' => 'required|boolean',
             'is_clean' => 'nullable|boolean',
         ]);

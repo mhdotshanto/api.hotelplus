@@ -145,12 +145,14 @@ class SaleRoomController extends Controller
         $authenticatedUser = auth()->user();
         if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
+//        return response()->json($request->all());
+
         $validated = $request->validate([
             "temp_id" => "nullable",
             "rooms" => "required|array",
             "rooms.*.room_number_id" => "required",
             "rooms.*.room_category_id" => "required",
-            "rooms.*.bed" => "required|string|in:SGL,DBL,TWN,TPL,4 BED",
+            "rooms.*.bed" => "required|string|in:SGL,DBL,2 DBL,3 DBL,TWN,CPL,TPL",
             "rooms.*.room_name_id" => "required",
             "rooms.*.date" => "required|date",
         ]);
@@ -1204,7 +1206,7 @@ class SaleRoomController extends Controller
             return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code, 'token' => $sale->token]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json($e->getMessage());
+            return response()->json($e->getMessage(), 500);
         }
     }
 
