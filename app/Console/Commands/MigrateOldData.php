@@ -142,7 +142,7 @@ class MigrateOldData extends Command
                 'room_floors',
                 'room_names',
                 'room_numbers',
-                'users',
+//                'users',
                 'guests',
                 'sale_rooms',
                 'sale_room_allocations',

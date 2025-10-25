@@ -124,7 +124,8 @@ class MiscController extends Controller
 
         $options = SaleRoom::query()
             ->when($searchTerm, function ($query, $searchTerm) {
-                $query->where(function ($q) use ($searchTerm) {
+                $query->whereIn('status', ['tentative', 'guaranteed', 'checkedin', 'postponed'])
+                ->where(function ($q) use ($searchTerm) {
                     $q->where('code', 'like', "%{$searchTerm}%")
                         ->orWhere('guest_name_first', 'like', "%{$searchTerm}%")
                         ->orWhere('guest_name_last', 'like', "%{$searchTerm}%")
@@ -136,6 +137,7 @@ class MiscController extends Controller
                         ->orWhere('date_checkout', 'like', "%{$searchTerm}%");
                 });
             })
+            ->orderByDesc('created_at')
             ->limit(5)
             ->get([
                 'id',
@@ -159,13 +161,13 @@ class MiscController extends Controller
     {
         //dd("this is getStatusCounts");
         $statuses = ['all','tentative', 'guaranteed', 'checkedin', 'to-checkin', 'checkin-missed', 'checkedout','to-checkout','checkout-missed', 'cancelled', 'postponed'];
-        
+
         $counts = [];
         $all_count = 0;
         foreach ($statuses as $status) {
            if($status == 'all') continue;
            if($status == 'to-checkin'){
-                $counts[$status] = SaleRoom::onArrivalGuests()->count()??0;     
+                $counts[$status] = SaleRoom::onArrivalGuests()->count()??0;
            } else if ($status == 'checkin-missed') {
                 $counts[$status] = SaleRoom::checkinMissedGuests()->count() ?? 0;
             }
@@ -180,5 +182,5 @@ class MiscController extends Controller
         }
         $counts['all'] = $all_count;
         return response()->json($counts);
-    }   
+    }
 }
