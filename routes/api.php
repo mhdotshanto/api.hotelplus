@@ -117,7 +117,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('get-money-receipts', 'getMoneyReceipts');
         Route::get('get-ledger-list', 'getLedgerListBySaleId');
         Route::post('discard-changes/{sale_id}', 'discardChanges');
-
     });
 
     Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
