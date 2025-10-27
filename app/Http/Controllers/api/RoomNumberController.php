@@ -274,7 +274,6 @@ class RoomNumberController extends Controller
         $date_start = $request->query('date_start');
         $date_end = $request->query('date_end');
 
-
         // Start building the query
         $query = RoomNumber::with([
             'roomName' => function ($roomNameQuery) {
@@ -299,7 +298,7 @@ class RoomNumberController extends Controller
             },
             'room_sale_allocation' => function ($roomSaleAllocationQuery) {
                 $roomSaleAllocationQuery->with('saleRoom', function ($roomAllocationSaleQuery) {
-                    $roomAllocationSaleQuery->with('user')->select('id', 'user_id', 'code', 'status');
+                    $roomAllocationSaleQuery->with('user')->select('id', 'user_id', 'code', 'status', 'token');
                 });
             }
         ])->where('is_active', 1);

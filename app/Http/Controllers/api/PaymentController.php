@@ -198,9 +198,8 @@ class PaymentController extends Controller
         SaleRoom $saleRoom,
         PaymentService $paymentService
     ) {
-        //dd($request->all());
-        // try {
-        //     DB::beginTransaction();
+         try {
+             DB::beginTransaction();
             $validatedData = $request->validate([
                 'amount'   => 'required|numeric',
                 'note'     => 'nullable|string|max:500',
@@ -235,16 +234,16 @@ class PaymentController extends Controller
             $saleRoom->adjusted_amount  = $voucher->amount;
             $saleRoom->save();
 
-        //     DB::commit();
-        //     return response()->json([
-        //         'message' => 'processed successfully.',
-        //     ], 200);
-        // } catch (\Throwable $e) {
-        //     DB::rollBack();
-        //     return response()->json([
-        //         'message' => $e->getMessage(),
-        //     ], 500);
-        // }
+             DB::commit();
+             return response()->json([
+                 'message' => 'processed successfully.',
+             ], 200);
+         } catch (\Throwable $e) {
+             DB::rollBack();
+             return response()->json([
+                 'message' => $e->getMessage(),
+             ], 500);
+         }
     }
 
     public function fullSaleCancellation(

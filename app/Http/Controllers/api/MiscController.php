@@ -159,21 +159,44 @@ class MiscController extends Controller
 
     public function getStatusCounts(Request $request)
     {
-        //dd("this is getStatusCounts");
-        $statuses = ['all','tentative', 'guaranteed', 'checkedin', 'to-checkin', 'checkin-missed', 'checkedout','to-checkout','checkout-missed', 'cancelled', 'postponed'];
+        $statuses = [
+            'all',
+            'tentative',
+            'guaranteed',
+            'checkedin',
+            'to_checkin',
+            'checkin_missed',
+            'checkedout',
+            'to_checkout',
+            'checkout_missed',
+            'cancelled',
+            'postponed'
+        ];
+
+//        all: number;
+//        tentative: number;
+//        guaranteed: number;
+//        checkedin: number;
+//        to_checkin: number;
+//        checkin_missed: number;
+//        checkedout: number;
+//        to_checkout: number;
+//        checkout_missed: number;
+//        postponed: number;
+//        cancelled: number;
 
         $counts = [];
         $all_count = 0;
         foreach ($statuses as $status) {
            if($status == 'all') continue;
-           if($status == 'to-checkin'){
+           if($status == 'to_checkin'){
                 $counts[$status] = SaleRoom::onArrivalGuests()->count()??0;
-           } else if ($status == 'checkin-missed') {
+           } else if ($status == 'checkin_missed') {
                 $counts[$status] = SaleRoom::checkinMissedGuests()->count() ?? 0;
             }
-           else if($status == 'to-checkout'){
+           else if($status == 'to_checkout'){
                 $counts[$status] = SaleRoom::onDepartureGuests()->count()??0;
-           } else if($status == 'checkout-missed'){
+           } else if($status == 'checkout_missed'){
                $counts[$status] = SaleRoom::checkoutMissedGuests()->count()??0;
            } else {
                $counts[$status] = SaleRoom::where('status', $status)->count()??0;

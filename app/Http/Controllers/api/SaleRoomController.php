@@ -1319,7 +1319,7 @@ class SaleRoomController extends Controller
                 'vat_per' => $config['vat'],
                 'vat_amount' => number_format($grossPrice->vat_amount, 2),
                 'servicecharge_per' => $config['service-charge'],
-                'servicecharge_amount' => number_format($grossPrice->service_charge_amount, 2),
+                'servicecharge_amount' => round($grossPrice->service_charge_amount, 2),
                 'price_gross' => $grossPrice->gross,
                 'discount_type' => $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
                 'discount_per' => $discountData['discount_per'],
@@ -1361,7 +1361,6 @@ class SaleRoomController extends Controller
             return response()->json($e->getMessage(), 500);
         }
     }
-
 
     public function saleRoomRecordByCode(Request $request)
     {
@@ -1487,10 +1486,25 @@ class SaleRoomController extends Controller
        // dd($request->all());
         $query = SaleRoom::with('note');
         if($request->filled('status') && $request->status != 'all'){
-            $query->where('status', $request->status);
+            if ($request->status == 'checkin-missed') {
+                $query->whereIn('status', ['tentative', 'guaranteed'])
+                    ->where('date_checkin', '<=', \Illuminate\Support\Carbon::yesterday()->toDateString());
+            } elseif ($request->status == 'to-checkin') {
+                $query->whereIn('status', ['tentative', 'guaranteed'])
+                    ->where('date_checkin', '>=', \Illuminate\Support\Carbon::today()->toDateString());
+            }elseif ($request->status == 'to-checkout') {
+                $query->whereIn('status', ['checkedin'])
+                    ->where('date_checkout', '>=', \Illuminate\Support\Carbon::today()->toDateString());
+            }elseif ($request->status == 'checkout-missed') {
+                $query->whereIn('status', ['checkedin'])
+                    ->where('date_checkout', '<=', \Illuminate\Support\Carbon::yesterday()->toDateString());
+            }else{
+                $query->where('status', $request->status);
+            }
         }
+
         $query ->orderBy('id', 'desc');
-        // dd($query->toSql());
+
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
@@ -1502,7 +1516,7 @@ class SaleRoomController extends Controller
             });
         }
 
-        $reservations = $query->paginate($request->perPage);
+        $reservations = $query->paginate($request->per_page);
 
         return response()->json($reservations);
     }
