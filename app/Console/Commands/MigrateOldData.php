@@ -231,38 +231,38 @@ class MigrateOldData extends Command
             ]);
         }
 
-        $oldUsers = DB::connection('mariadb_source')->table('reg_staffs as s')
-            ->leftJoin('users as u','s.userid','=','u.id')
-            ->select('s.name','u.username','s.email','s.contact','s.designation','u.password','s.isref', DB::raw('s.id as staff_id'), DB::raw('u.id as user_id'))
-            ->get();
-
-        $username_suffix = 1;
-        foreach ($oldUsers as $user) {
-            $username = $user->username;
-            $email = $user->email;
-            if (is_null($email)) $email = $user->username . "@gmail.com";
-            if($username == 'arrowheadit'){
-                $username = $user->username . $username_suffix;
-                $username_suffix++;
-            }
-            DB::connection('mariadb_target')->table('users')->insert([
-                'name' => $user->name,
-                'user_name' => $username,
-                'role' => 'admin',
-                'type' => 'user',
-                'status' => 'active',
-                'email' => $email,
-                'phone' => $user->contact,
-                'designation' => $user->designation,
-                'password' => $user->password,
-                'is_ref' => $user->isref,
-                'email_verified_at' => now(),
-                'oid' => $user->user_id,
-                'osid' => $user->staff_id,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-        }
+//        $oldUsers = DB::connection('mariadb_source')->table('reg_staffs as s')
+//            ->leftJoin('users as u','s.userid','=','u.id')
+//            ->select('s.name','u.username','s.email','s.contact','s.designation','u.password','s.isref', DB::raw('s.id as staff_id'), DB::raw('u.id as user_id'))
+//            ->get();
+//
+//        $username_suffix = 1;
+//        foreach ($oldUsers as $user) {
+//            $username = $user->username;
+//            $email = $user->email;
+//            if (is_null($email)) $email = $user->username . "@gmail.com";
+//            if($username == 'arrowheadit'){
+//                $username = $user->username . $username_suffix;
+//                $username_suffix++;
+//            }
+//            DB::connection('mariadb_target')->table('users')->insert([
+//                'name' => $user->name,
+//                'user_name' => $username,
+//                'role' => 'admin',
+//                'type' => 'user',
+//                'status' => 'active',
+//                'email' => $email,
+//                'phone' => $user->contact,
+//                'designation' => $user->designation,
+//                'password' => $user->password,
+//                'is_ref' => $user->isref,
+//                'email_verified_at' => now(),
+//                'oid' => $user->user_id,
+//                'osid' => $user->staff_id,
+//                'created_at' => now(),
+//                'updated_at' => now()
+//            ]);
+//        }
 
         $nameAddressArray = ['MALE'=>'Mr.','FEMALE'=>'Mrs.'];
         $newUserArray = DB::connection('mariadb_target')->table('users')->pluck('id','osid')->toArray();

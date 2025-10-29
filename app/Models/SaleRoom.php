@@ -103,7 +103,7 @@ class SaleRoom extends Model
     public function ScopeCheckinMissedGuests($query){
         $today = now()->toDateString();
         return $query->whereIn('status', ['tentative', 'guaranteed'])
-                ->where('date_checkin','<=',Carbon::yesterday()->toDateString() );
+                ->where('date_checkin','<=',Carbon::yesterday()->toDateString());
     }
     public function ScopeCheckoutMissedGuests($query)
     {
