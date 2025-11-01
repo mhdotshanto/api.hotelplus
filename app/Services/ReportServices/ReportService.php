@@ -80,12 +80,12 @@ class ReportService
             "total_due"  => (float) ($total_bills->total_bill_amount ?? 0) - (($total_payments->total_payment_amount ?? 0) + ($total_adjustment->total_adjustment ?? 0)),
             // "total_payment" => $total_payment,
             // "total_refund"=> $total_refund,
-            // "total_adjustment"=> $total_adjustment                
+            // "total_adjustment"=> $total_adjustment
         ]);
     }
-    
+
     public function getledgerData($token){
-        
+
         $data = SaleRoom::with([
             'sale_room_allocation' => function ($query) {
                 $query->with(['room_name', 'room']);
@@ -204,7 +204,7 @@ class ReportService
         ];
         return $data;
     }
-   
+
    public function getReservationDetail($token){
         $data = SaleRoom::with([
             'sale_room_allocation' => function ($query) {
@@ -228,7 +228,7 @@ class ReportService
                 500
             );
         }
-   
+
         $categorySummaryCollection = collect($data->room_categories)
             ->where('is_xb', 0)
             ->groupBy(function ($item) {
@@ -278,7 +278,7 @@ class ReportService
 
         $totalAmount = $categorySummaryCollection->sum('amount');
 
-       
+
         $categorySummaryStringForXB = $categorySummaryCollectionForExtraBed->map(function ($item) {
             return "{$item['category_name']} [" . number_format($item['rate_sale'], 2) . "x{$item['qty']}]";
         })->implode(', ');
@@ -344,7 +344,7 @@ class ReportService
             $checkinData = $checkinData->where('date_checkin', '<=', $params['date_to']);
         }
 
-        if (isset($params['references'])) {
+        if (!is_null($params['references'])) {
             $checkinData = $checkinData->whereIn('ref_id', $params['references']);
         }
         $checkinData = $checkinData->get();
@@ -366,11 +366,11 @@ class ReportService
         $total_refund      = $checkinData->sum('refund');
         $total_adjustment  = $checkinData->sum('adjustment');
         $total_tip         = $checkinData->sum('tip');
-        $total_balance     = $checkinData->sum('balance'); 
+        $total_balance     = $checkinData->sum('balance');
         $total_due         = $checkinData->sum('due');
-    $sale_agents = $checkinData->pluck('sale_agent.name')   
-    ->unique()                   
-    ->implode(', ');  
+    $sale_agents = $checkinData->pluck('sale_agent.name')
+    ->unique()
+    ->implode(', ');
     return [
             'from_date' => $params['date_from'] ? \Carbon\Carbon::parse($params['date_from'])->format('d/m/Y') : null,
             'to_date'   => $params['date_to'] ? \Carbon\Carbon::parse($params['date_to'])->format('d/m/Y') : null,
@@ -390,17 +390,17 @@ class ReportService
         ];
    }
 
-   public function getCheckoutData($params){    
+   public function getCheckoutData($params){
     $checkoutData = SaleRoom::with([ 'sale_agent']);
     if(isset($params['date_from'])){
         $checkoutData = $checkoutData->where('date_checkout','>=',$params['date_from']);
     }
-    
+
     if(isset($params['date_to'])){
         $checkoutData = $checkoutData->where('date_checkout','<=',$params['date_to']);
     }
-   
-    if(isset($params['references'])){
+
+    if(!is_null($params['references'])){
         $checkoutData = $checkoutData->whereIn('ref_id',$params['references']);
     }
     $checkoutData = $checkoutData->get();
@@ -408,9 +408,9 @@ class ReportService
     $total_rooms = $data_collection->sum('room_qty');
     $total_gross_price = $data_collection->sum('price_gross');
     $total_net_price = $data_collection->sum('price_net');
-    $sale_agents = $checkoutData->pluck('sale_agent.name')   
-    ->unique()                   
-    ->implode(', ');  
+    $sale_agents = $checkoutData->pluck('sale_agent.name')
+    ->unique()
+    ->implode(', ');
     return [
             'from_date' => $params['date_from'] ? \Carbon\Carbon::parse($params['date_from'])->format('d/m/Y') : null,
             'to_date'   => $params['date_to'] ? \Carbon\Carbon::parse($params['date_to'])->format('d/m/Y') : null,
@@ -440,10 +440,7 @@ class ReportService
 
         $rooms = $rooms->get();
         $queryData = $rooms->flatMap(function ($room) use ($date, $roomType) {
-            //dd($date,$roomType);
-            if($roomType=="sold" || $roomType=="all"){
-                
-            }
+
             $allocations = $room->room_sale_allocation
                 ->filter(fn($alloc) => $date ? $alloc->saleRoom->date === $date : true);
 
@@ -451,9 +448,6 @@ class ReportService
             if ($allocations->isNotEmpty() ) {
                 return $allocations->map(function ($alloc) use ($room, $roomType) {
                     $saleRoom = $alloc->saleRoom;
-                    if($roomType == "sold" || $roomType == "all"){
-                        
-                    }
                     return [
                         'room_name'          => $room->name ?? "",
                         'room_category_name' => $room->roomName->category->name ?? "",
@@ -506,9 +500,10 @@ class ReportService
         $totalCommission = $queryData->sum('commision');
         $totalNetSale   = $queryData->sum('price_net');
         $totalIncome    = $totalNetSale;
+
         return [
             'date'        => $date ? \Carbon\Carbon::parse($date)->format('d/m/Y') : null,
-            'roomData'    => $queryData->values(), // reset indexes            
+            'roomData'    => $queryData->values(), // reset indexes
             'summary' => [
                 'total_not_sold_room'      => $queryData->count(),
                 'total_sold_room'      => $queryData->whereIn('status', ['guaranteed', 'checkedin', 'checkedout', 'tentative'])->count(),
@@ -535,26 +530,26 @@ class ReportService
             DB::raw('COALESCE(a.adjustment, 0) as adjustment')
         )
             ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as payment 
-                         FROM acc_vouchers 
-                         WHERE type = 'payment' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as payment
+                         FROM acc_vouchers
+                         WHERE type = 'payment'
                          GROUP BY sale_room_id) as p"),
                 'sale_rooms.id',
                 '=',
                 'p.sale_room_id'
             )
             ->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as refund 
-                         FROM acc_vouchers 
-                         WHERE type = 'refund' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as refund
+                         FROM acc_vouchers
+                         WHERE type = 'refund'
                          GROUP BY sale_room_id) as v"),
                 'sale_rooms.id',
                 '=',
                 'v.sale_room_id'
             )->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment 
-                         FROM acc_vouchers 
-                         WHERE type = 'adjustment' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment
+                         FROM acc_vouchers
+                         WHERE type = 'adjustment'
                          GROUP BY sale_room_id) as a"),
                 'sale_rooms.id',
                 '=',
@@ -577,9 +572,9 @@ class ReportService
                 $roomSaleData = $roomSaleData->checkoutMissedGuests();
             }
        }
-        
+
        // dd($roomSaleData->get());
-        
+
         $roomSaleData = $roomSaleData->get();
         $total_rooms = $roomSaleData->sum('room_qty');
         $total_gross_price = $roomSaleData->sum('price_gross');
@@ -589,9 +584,9 @@ class ReportService
         $total_refund = $roomSaleData->sum('refund');
         $total_adjustment = $roomSaleData->sum('adjustment');
 
-    
+
         return [
-            'roomSaleData'  => $roomSaleData,            
+            'roomSaleData'  => $roomSaleData,
             'total_rooms' => $total_rooms,
             'total_gross_price' => $total_gross_price,
             'total_discount' => $total_discount??0.00,
@@ -626,11 +621,11 @@ class ReportService
             ->map(function ($room) {
                 $room->balance = ($room->payment ?? 0)
                     - ($room->refund ?? 0)
-                    + ($room->adjustment ?? 0); 
+                    + ($room->adjustment ?? 0);
                 $room->due     = ($room->bill ?? 0) - $room->balance;
                 return $room;
             });
-      
+
         $total_rooms       = $roomSaleData->sum('room_qty');
         $total_gross_price = $roomSaleData->sum('price_gross');
         $total_discount    = $roomSaleData->sum('discount_amount');
@@ -671,27 +666,27 @@ class ReportService
         )
             ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
             ->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as payment 
-                 FROM acc_vouchers 
-                 WHERE type = 'payment' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as payment
+                 FROM acc_vouchers
+                 WHERE type = 'payment'
                  GROUP BY sale_room_id) as p"),
                 'sale_rooms.id',
                 '=',
                 'p.sale_room_id'
             )
             ->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as refund 
-                 FROM acc_vouchers 
-                 WHERE type = 'refund' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as refund
+                 FROM acc_vouchers
+                 WHERE type = 'refund'
                  GROUP BY sale_room_id) as v"),
                 'sale_rooms.id',
                 '=',
                 'v.sale_room_id'
             )
             ->leftJoin(
-                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment 
-                 FROM acc_vouchers 
-                 WHERE type = 'adjustment' 
+                DB::raw("(SELECT sale_room_id, SUM(amount) as adjustment
+                 FROM acc_vouchers
+                 WHERE type = 'adjustment'
                  GROUP BY sale_room_id) as a"),
                 'sale_rooms.id',
                 '=',
@@ -723,8 +718,8 @@ class ReportService
         ];
     }
     public function getGuestByDate($params)
-    {   
-        //dd($params);     
+    {
+        //dd($params);
         $roomSaleData = SaleRoom::select(
             'sale_rooms.*',
             DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
@@ -738,29 +733,29 @@ class ReportService
             } elseif(isset($params['reportType']) && $params['reportType']=='checkedout'){
                 $roomSaleData = $roomSaleData->where('date_checkout','>=',$params['date_from']);
                 $roomSaleData = $roomSaleData->where('date_checkout','<=',$params['date_to']);
-            }            
+            }
 
         $roomSaleData = $roomSaleData->get();
-        $total_rooms = $roomSaleData->sum('room_qty');       
+        $total_rooms = $roomSaleData->sum('room_qty');
         $total_net_price = $roomSaleData->sum('price_net');
 
         return [
             'roomSaleData'  => $roomSaleData,
-            'total_rooms' => $total_rooms,            
+            'total_rooms' => $total_rooms,
             'total_net_price' => $total_net_price,
             'total_balance' => $total_net_price,
             'status' => $params['reportType']=='checkedin' ? "CHECKIN" : "CHECKOUT",
         ];
     }
     public function getAllGuestData($params)
-    {        
+    {
         $roomSaleData = SaleRoom::select(
             'sale_rooms.*',
             DB::raw('COUNT(DISTINCT sale_room_allocations.id) as total_rooms'),
             DB::raw('GROUP_CONCAT(DISTINCT sale_room_allocations.room_number_id SEPARATOR ",") as room_numbers')
         )
             ->leftJoin('sale_room_allocations', 'sale_rooms.id', '=', 'sale_room_allocations.room_sale_id')
-            ->groupBy('sale_rooms.id');           
+            ->groupBy('sale_rooms.id');
         $roomSaleData = $roomSaleData->get();
         $total_rooms = $roomSaleData->sum('room_qty');
         $total_gross_price = $roomSaleData->sum('price_gross');
@@ -778,7 +773,7 @@ class ReportService
             'total_balance' => $total_net_price,
         ];
     }
-    
+
     public function getMoneyReceiptData($mrNo){
        $data =  AccVoucher::with('saleRoom', 'receiver')->where('receipt_ref', $mrNo)
             ->where('payment_method', '!=', 'N/A')
