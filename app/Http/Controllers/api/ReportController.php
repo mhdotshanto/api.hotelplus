@@ -66,7 +66,7 @@ class ReportController extends Controller
                     "{$name}.xlsx"
                 );
             }
-        } elseif($output=="pdf") {            
+        } elseif($output=="pdf") {
             $html = view('reports.ledger.pdf')->with(['data' => $data, 'title' => $name])->render();
             $header = view('reports.layouts.pdf.header')->render();
             $footer = view('reports.layouts.pdf.footer')->render();
@@ -77,18 +77,19 @@ class ReportController extends Controller
             $mpdf->WriteHTML($html);
             $mpdf->Output("{$data['saleRoom']->code}.pdf", 'I');
         }
-        
+
     }
     public function checkinReport(Request $request)
     {
-       // dd($request->all());
         try {
-            $validated = $request->validate([           
+            $validated = $request->validate([
                 'output' => 'required|string',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
-                'references' => 'required|array',            
+                'references' => 'nullable|array',
+                'references.*' => 'string',
             ]);
+            $validated['references'] = $validated['references'] ?? null;
             $name = "Checkin Report";
             if ($validated) {
                 $output = $validated['output'];
@@ -117,8 +118,8 @@ class ReportController extends Controller
                     'message' => 'Validation Failed',
                 ], 400);
             };
-        
-             
+
+
             if ($output === 'html') {
                 if ($data) {
                     return view('reports.sales.checkin.html')->with(['data' => $data]);
@@ -130,7 +131,7 @@ class ReportController extends Controller
                         "{$name}.xlsx"
                     );
                 }
-            } elseif($output=="pdf") {            
+            } elseif($output=="pdf") {
                 $html = view('reports.sales.checkin.pdf')->with(['data' => $data])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
@@ -147,7 +148,7 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 422);
         }
-        
+
     }
     public function printReservationDetail(Request $request)
     {
@@ -165,7 +166,7 @@ class ReportController extends Controller
                     'message' => 'Token Not Found',
                 ], 400);
             };
-            
+
             //dd($output);
             $data = $this->reportService->getReservationDetail($token);
 
@@ -192,13 +193,15 @@ class ReportController extends Controller
     {
        // dd($request->all());
         try {
-            $validated = $request->validate([           
+            $validated = $request->validate([
                 'output' => 'required|string',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
-                'references' => 'required|array',            
+                'references' => 'nullable|array',
+                'references.*' => 'string',
             ]);
-            $name = "Checkout Report"; 
+            $validated['references'] = $validated['references'] ?? null;
+            $name = "Checkout Report";
             if ($validated) {
                 $output = $validated['output'];
                 $data = $this->reportService->getCheckoutData($validated);
@@ -226,8 +229,8 @@ class ReportController extends Controller
                     'message' => 'Validation Failed',
                 ], 400);
             };
-        
-            
+
+
             if ($output === 'html') {
                 if ($data) {
                     return view('reports.sales.checkout.html')->with(['data' => $data]);
@@ -239,7 +242,7 @@ class ReportController extends Controller
                         "{$name}.xlsx"
                     );
                 }
-            } elseif($output=="pdf") {            
+            } elseif($output=="pdf") {
                 $html = view('reports.sales.checkout.pdf')->with(['data' => $data])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
@@ -256,17 +259,19 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 422);
         }
-        
+
     }
     public function dailyRoomReport(Request $request)
     {
-       // dd($request->all());
         try {
-            $validated = $request->validate([           
+            $validated = $request->validate([
                 'output' => 'required|string',
-                'date' => 'required|date', 
-                'roomType'=>'required|string',      
+                'date' => 'required|date',
+                'roomType'=>'nullable|string',
             ]);
+
+            $validated['roomType'] = $validated['roomType'] ?? "all";
+//            return response()->json($validated);
             if ($validated) {
                 $output = $validated['output'];
                 $data = $this->reportService->getDailyRoomData($validated);
@@ -286,15 +291,15 @@ class ReportController extends Controller
                     ]
                 );
                 $data['title'] = "Daily Room Report";
-                
+
                 //dd($data);
             } else {
                 return response()->json([
                     'message' => 'Validation Failed',
                 ], 400);
             };
-        
-            $name = "Daily Room Report"; 
+
+            $name = "Daily Room Report";
             if ($output === 'html') {
                 if ($data) {
                     return view('reports.sales.daily-room-report.html')->with(['data' => $data]);
@@ -306,8 +311,8 @@ class ReportController extends Controller
                         "{$name}.xlsx"
                     );
                 }
-            } elseif($output=="pdf") {    
-                //dd($data);        
+            } elseif($output=="pdf") {
+                //dd($data);
                 $html = view('reports.sales.daily-room-report.pdf')->with(['data' => $data, 'title' => $name])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
@@ -324,14 +329,14 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 422);
         }
-        
+
     }
     public function inhouseGuestReport(Request $request)
-    {        
+    {
         try {
-            $validated = $request->validate([           
+            $validated = $request->validate([
                 'output' => 'required|string',
-                'reportType'=>'required|string',      
+                'reportType'=>'required|string',
             ]);
             if ($validated) {
                 $reportType = $validated['reportType'];
@@ -366,8 +371,8 @@ class ReportController extends Controller
                     'message' => 'Validation Failed',
                 ], 400);
             };
-        
-            //$name = "Inhouse Guest Report"; 
+
+            //$name = "Inhouse Guest Report";
             if ($output === 'html') {
                 if ($data) {
                     return view('reports.guest.inhouse.html')->with(['data' => $data]);
@@ -379,7 +384,7 @@ class ReportController extends Controller
                         "{$report_title}.xlsx"
                     );
                 }
-            } elseif($output=="pdf") {            
+            } elseif($output=="pdf") {
                 $html = view('reports.guest.inhouse.pdf')->with(['data' => $data, 'title' => $report_title])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
@@ -396,7 +401,7 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 422);
         }
-        
+
     }
 
     public function arrivalGuestReport(Request $request)
@@ -465,7 +470,7 @@ class ReportController extends Controller
             'date_to' => 'required|date',
             'output' => 'required|string',
             'reportType' => 'required|string',
-        ]);        
+        ]);
         if ($validated) {
             $reportType = $validated['reportType'];
             if(isset($reportType)){
@@ -475,7 +480,7 @@ class ReportController extends Controller
                     $report_name = "GUEST REPORT BY CHECKED OUT DATE";
                 }
             }
-            $report_title = "GUEST REPORT BY DATE";            
+            $report_title = "GUEST REPORT BY DATE";
             $output = $validated['output'];
             $data = $this->reportService->getGuestByDate($validated);
             $data['routes']['pdf'] = route(
@@ -597,7 +602,7 @@ class ReportController extends Controller
     public function printMoneyReceipt($id)
     {
         //dd($id);
-        $data = $this->reportService->getMoneyReceiptData($id);        
+        $data = $this->reportService->getMoneyReceiptData($id);
         $name = "Money Receipt - {$data->saleRoom->code}";
         if ($data) {
             $html = view('reports.sales.money-receipt.pdf')->with(['data' => $data, 'title' => $name])->render();
@@ -664,7 +669,7 @@ class ReportController extends Controller
             </tr>';
             }
             $mpdf->WriteHTML($chunkHtml);
-            //$mpdf->flush(); 
+            //$mpdf->flush();
         });
 
         $mpdf->WriteHTML('</tbody></table>');
@@ -796,26 +801,26 @@ class ReportController extends Controller
                             'message' => $validated['message'],
                             'pdfContent'=> $pdfContent,
                             'pdfFileName' => "{$data['saleRoom']->code}.pdf",
-                            
+
                         ];
                         return $this->emailService->sendReservationMail($mailDetails);
                     } else {
                         return 0;
                     }
-                    
+
                         }
                         }
                      } catch (\Exception $ex) {
                         return $this->withErrors($ex->getMessage());
                     }
-                   
+
 
         return response()->json(['success' => true]);
     }
     public function sendLedgerMail(Request $request)
     {
         try {
-            
+
             $validated = $request->validate([
                 'sale_id' => 'required|integer',
                 'emailType'=>'required|string',
@@ -842,7 +847,7 @@ class ReportController extends Controller
                             $html = view('reports.ledger.pdf')->with(['data' => $data, 'title' => $name])->render();
                         }
 
-                }                
+                }
                     $header = view('reports.layouts.pdf.header')->render();
                     $footer = view('reports.layouts.pdf.footer')->render();
                     $this->mpdfService->mpdf($name);
@@ -866,7 +871,7 @@ class ReportController extends Controller
                             'message' => $validated['message'],
                             'pdfContent'=> $pdfContent,
                             'pdfFileName' => "{$data['saleRoom']->code}.pdf",
-                            
+
                         ];
                         return $this->emailService->sendReservationMail($mailDetails);
                     } else {
@@ -876,7 +881,7 @@ class ReportController extends Controller
                      } catch (\Exception $ex) {
                         return $this->withErrors($ex->getMessage());
                     }
-                   
+
 
         return response()->json(['success' => true]);
     }
