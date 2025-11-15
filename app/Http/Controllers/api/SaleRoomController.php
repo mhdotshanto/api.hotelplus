@@ -1144,10 +1144,15 @@ class SaleRoomController extends Controller
             $preferences = $guest->load('preferences')->preferences->pluck('id');
 
             // Total price before any discounts
-            $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
+            $totalPrice = $validated['payment_details']['discountType'] == 'customize-rate' ?
+                $this->customRateTotal($validated['payment_details']['customRates'])
+                : $this->getTempDetailsTotalPrice($temp->details);
+
+//            $customTotal = $this->customRateTotal($validated['payment_details']['customRates']);
 
             // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
+//            return response()->json($grossPrice);
 
             // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);

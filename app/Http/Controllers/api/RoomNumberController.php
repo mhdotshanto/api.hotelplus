@@ -277,7 +277,42 @@ class RoomNumberController extends Controller
         // Start building the query
         $query = RoomNumber::with([
             'roomName' => function ($roomNameQuery) {
-                $roomNameQuery->with('category');
+                $roomNameQuery->selectRaw("
+                room_names.*,
+                COALESCE(
+                    (
+                        SELECT JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'id', rsr.id,
+                                'name', rsr.name,
+                                'start_date', rsr.start_date,
+                                'end_date', rsr.end_date,
+                                'note', rsr.note,
+                                'priority', rsr.priority,
+                                'details', (
+                                    SELECT JSON_OBJECT(
+                                        'id', rsrd_inner.id,
+                                        'rate', rsrd_inner.rate,
+                                        'rate_xb', rsrd_inner.rate_xb
+                                    )
+                                    FROM room_special_rate_details rsrd_inner
+                                    WHERE rsrd_inner.special_rate_id = rsr.id
+                                      AND rsrd_inner.room_name_id = room_names.id
+                                    LIMIT 1
+                                )
+                            )
+                        )
+                        FROM room_special_rates rsr
+                        INNER JOIN room_special_rate_details rsrd
+                            ON rsr.id = rsrd.special_rate_id
+                        WHERE rsrd.room_name_id = room_names.id
+                        ORDER BY rsr.priority ASC
+                    ),
+                    JSON_ARRAY()
+                ) as special_rates
+            ")
+                    ->groupBy('room_names.id')
+                    ->with('category');
             },
             'floor',
             'room_block_details' => function ($roomBlockQuery) use ($date_start, $date_end) {
@@ -325,12 +360,24 @@ class RoomNumberController extends Controller
 
         // Execute the query and order results
         $rooms = $query->orderBy('name', 'ASC')->get();
+
+        // Decode the special_rates JSON for each room (only if it's a string)
+        foreach ($rooms as $room) {
+            if ($room->roomName && isset($room->roomName->special_rates)) {
+                // Check if it's a string before decoding
+                if (is_string($room->roomName->special_rates)) {
+                    $room->roomName->special_rates = json_decode($room->roomName->special_rates, true);
+                }
+                // If it's already an array, leave it as is
+            }
+        }
+
         return response()->json($rooms);
     }
 
     public function searchBySpecialRate(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'start_date' => 'required',
             'end_date' => 'required',
             'room_name_ids' => 'nullable|array',

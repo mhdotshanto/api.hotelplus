@@ -6,12 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class RoomSpecialRate extends Model
 {
-    protected $fillable = [
-        'name',
-        'start_date',
-        'end_date',
-        'note',
-    ];
+    protected $guarded = ['id'];
 
     public function details()
     {

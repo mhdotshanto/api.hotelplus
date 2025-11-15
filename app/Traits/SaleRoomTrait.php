@@ -23,17 +23,26 @@ trait SaleRoomTrait
 
             'payment_details.manualNetPrice' => 'nullable|numeric|min:0|max:999999.99',
             'payment_details.pendingNetPrice' => 'nullable|numeric|min:0|max:999999.99',
-            'payment_details.discountType' => 'required|string|in:no-discount,by-invoice,by-category',
+            'payment_details.discountType' => 'required|string|in:no-discount,by-invoice,by-category,customize-rate',
 
+            // by-invoice data validation
             'payment_details.byInvoiceDiscount' => 'required|array',
             'payment_details.byInvoiceDiscount.percentage' => 'required|numeric|min:0|max:100',
             'payment_details.byInvoiceDiscount.amount' => 'required|numeric|min:0|max:999999.99',
 
-            'payment_details.byCategoryDiscount' => 'required|array',
+            // by-category data validation
+            'payment_details.byCategoryDiscount ' => 'required|array',
             'payment_details.byCategoryDiscount.*.room.amount' => 'required|numeric|min:0',
             'payment_details.byCategoryDiscount.*.room.percentage' => 'required|numeric|min:0|max:100',
             'payment_details.byCategoryDiscount.*.xb.amount' => 'nullable|numeric|min:0',
             'payment_details.byCategoryDiscount.*.xb.percentage' => 'nullable|numeric|min:0|max:100',
+
+            //customize-rate data validation
+            'payment_details.customRates' => 'required|array',
+            'payment_details.customRates.*.roomRate' => 'required|numeric|min:0|max:999999.99',
+            'payment_details.customRates.*.room_qty' => 'required|numeric|min:0|max:999999.99',
+            'payment_details.customRates.*.xbRate' => 'required|numeric|min:0',
+            'payment_details.customRates.*.xb_qty' => 'required|numeric|min:0',
 
             'payment_details.masterRoom' => 'required|string|max:50',
             'payment_details.saleType' => 'required|string|in:FIT,GROUP',
@@ -58,6 +67,12 @@ trait SaleRoomTrait
         $roomNames,
         $config
     ){
+        $discount_type = 'none';
+
+        if ($discountType === 'by-invoice') $discount_type = 'invoice';
+        if ($discountType === 'by-category') $discount_type = 'category';
+        if ($discountType === 'customize-rate') $discount_type = 'custom_rate';
+
         return SaleRoom::create([
             'guest_id' => $guest->id,
             'guest_name_title' => $guest->name_address,
@@ -82,9 +97,7 @@ trait SaleRoomTrait
             'servicecharge_per' => $config['service-charge'],
             'servicecharge_amount' => $this->fixDecimal($grossPrice->service_charge_amount),
             'price_gross' => $grossPrice->gross,
-            'discount_type' =>
-                $discountType === 'by-invoice' ? 'invoice' :
-                    ($discountType === 'by-category' ? 'category' : 'none'),
+            'discount_type' => $discount_type,
             'discount_per' => $discountPer,
             'discount_amount' => $this->fixDecimal($discountAmount),
             'price_sale' => $priceSale,
@@ -240,5 +253,13 @@ trait SaleRoomTrait
             return $roomTotal + $xbTotal;
         });
     }
+
+    public function customRateTotal($customRates)
+    {
+        return collect($customRates)->sum(function ($rate) {
+            return ($rate['roomRate'] * $rate['room_qty']) + ($rate['xbRate'] * $rate['xb_qty']);
+        });
+    }
+
 
 }
