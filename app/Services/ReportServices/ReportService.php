@@ -495,6 +495,7 @@ class ReportService
                     'price_net'          => (float) 0,
                 ]];
             }
+
         });
         $totalSale      = $queryData->sum('room_rent');
         $totalCommission = $queryData->sum('commision');

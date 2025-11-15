@@ -11,4 +11,8 @@ class RoomName extends Model
     public function category() {
         return $this->hasOne(RoomCategory::class, 'id', 'category_id');
     }
+
+    public function special_rates() {
+        return $this->hasMany(RoomSpecialRateDetail::class, 'room_name_id', 'id');
+    }
 }

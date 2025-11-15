@@ -16,7 +16,6 @@ class GuestController extends Controller
 {
     public function store(Request $request)
     {
-//        return response()->json($request->all());
         $validated = $request->validate([
             'guest_id'           => 'nullable|exists:guests,id',
             'temp_id'            => 'required|numeric',
@@ -25,7 +24,7 @@ class GuestController extends Controller
             'first_name'         => 'nullable|string|max:30',
             'email'              => 'nullable|email|max:191',
             'mobile'             => 'required|string|max:15',
-            'secondary_mobile'   => 'required|string|max:15',
+            'secondary_mobile'   => 'nullable|string|max:15',
             'emergency_contact'  => 'nullable|string|max:50',
             'dob'                => 'nullable|date',
             'dom'                => 'nullable|date',
@@ -111,7 +110,7 @@ class GuestController extends Controller
             ->get();
 
         return response()->json($guests);
-    }   
+    }
 
     public function guestBySale(SaleRoom $saleRoom)
     {

@@ -71,13 +71,19 @@ class RoomNameController extends Controller
 
     public function destroy(RoomName $roomName)
     {
-        $roomName->update([
-            'is_active'=>!$roomName->is_active
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Room name updated successfully',
-        ]);
+        try {
+            $roomName->delete();
+            return response()->json([
+                'success' => true,
+                'message' => 'Room name deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete room name',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+
 }

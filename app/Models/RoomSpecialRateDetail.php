@@ -6,14 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class RoomSpecialRateDetail extends Model
 {
-    protected $fillable = [
-        'special_rate_id',
-        'category_id',
-        'rate',
-        'rate_xb',
-    ];
+    protected $guarded = ['id'];
 
-    public function specialRate()
+    public function special_rate()
     {
         return $this->belongsTo(RoomSpecialRate::class);
     }

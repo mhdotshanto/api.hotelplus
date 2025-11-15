@@ -13,7 +13,7 @@ class RoomSpecialRateController extends Controller
 {
     public function index(Request $request)
     {
-        $query = RoomSpecialRate::query();
+        $query = RoomSpecialRate::with("details");
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -22,8 +22,10 @@ class RoomSpecialRateController extends Controller
             });
         }
 
+        $query->orderBy('priority', 'asc');
+
         $data = $query->paginate(10);
-        
+
         return response()->json([
             'success' => true,
             'data' => $data,
@@ -36,44 +38,48 @@ class RoomSpecialRateController extends Controller
             'name' => 'required|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date',
-            'note' => 'required',
-            'special_rate' => 'nullable|array',
-            'special_rate.*.category_id' => 'required|integer|exists:room_categories,id',
-            'special_rate.*.rate' => 'required|numeric',
-            'special_rate.*.rate_xb' => 'required|numeric',
+            'note' => 'required|string',
+            'priority' => 'required|integer',
+            'spacial_rate_details' => 'nullable|array',
+            'spacial_rate_details.*.room_name_id' => 'required|integer',
+            'spacial_rate_details.*.rate' => 'required|numeric',
+            'spacial_rate_details.*.rate_xb' => 'nullable|numeric',
         ]);
 
-        // Check if the new date range overlaps with any existing record
-        $overlappingRecord = RoomSpecialRate::where(function ($query) use ($validatedData) {
-            $query->whereBetween('start_date', [$validatedData['start_date'], $validatedData['end_date']])
-                ->orWhereBetween('end_date', [$validatedData['start_date'], $validatedData['end_date']])
-                ->orWhere(function ($q) use ($validatedData) {
-                    $q->where('start_date', '<=', $validatedData['start_date'])
-                        ->where('end_date', '>=', $validatedData['end_date']);
-                });
-        })->exists();
+        // Check overlapping date range
+//        $overlappingRecord = RoomSpecialRate::where(function ($query) use ($validatedData) {
+//            $query->whereBetween('start_date', [$validatedData['start_date'], $validatedData['end_date']])
+//                ->orWhereBetween('end_date', [$validatedData['start_date'], $validatedData['end_date']])
+//                ->orWhere(function ($q) use ($validatedData) {
+//                    $q->where('start_date', '<=', $validatedData['start_date'])
+//                        ->where('end_date', '>=', $validatedData['end_date']);
+//                });
+//        })->exists();
+//
+//        if ($overlappingRecord) {
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Already has a special rate within this date range.',
+//            ]);
+//        }
 
-        if ($overlappingRecord) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Already has a special rate within this date range.',
-            ]);
-        }
-
+        // Create main record
         $roomSpecialRate = RoomSpecialRate::create([
             'name' => $validatedData['name'],
             'start_date' => $validatedData['start_date'],
             'end_date' => $validatedData['end_date'],
             'note' => $validatedData['note'],
+            'priority' => $validatedData['priority'],
         ]);
-    
-        if (!empty($validatedData['special_rate'])) {
-            foreach ($validatedData['special_rate'] as $rate) {
+
+        // Create detail records
+        if (!empty($validatedData['spacial_rate_details'])) {
+            foreach ($validatedData['spacial_rate_details'] as $rate) {
                 RoomSpecialRateDetail::create([
                     'special_rate_id' => $roomSpecialRate->id,
-                    'category_id' => $rate['category_id'],
+                    'room_name_id' => $rate['room_name_id'],
                     'rate' => $rate['rate'],
-                    'rate_xb' => $rate['rate_xb'],
+                    'rate_xb' => $rate['rate_xb'] ?? 0,
                 ]);
             }
         }
@@ -83,6 +89,7 @@ class RoomSpecialRateController extends Controller
             'message' => 'Room special rate created successfully',
         ]);
     }
+
 
     public function edit(Request $request, $id)
     {
@@ -95,66 +102,70 @@ class RoomSpecialRateController extends Controller
                 'message' => 'Special rate not found',
             ], 404);
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => $data,
         ]);
     }
 
-    public function update(Request $request, $roomSpecialRate)
+    public function update(Request $request, $id)
     {
-        $item = RoomSpecialRate::findOrFail($roomSpecialRate);
-        
+        $item = RoomSpecialRate::findOrFail($id);
+
         $validatedData = $request->validate([
             'name' => 'required|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date',
-            'note' => 'required',
-            'special_rate' => 'nullable|array',
-            'special_rate.*.category_id' => 'required|integer|exists:room_categories,id',
-            'special_rate.*.rate' => 'required|numeric',
-            'special_rate.*.rate_xb' => 'required|numeric',
+            'note' => 'required|string',
+            'priority' => 'required|integer',
+            'spacial_rate_details' => 'nullable|array',
+            'spacial_rate_details.*.room_name_id' => 'required|integer',
+            'spacial_rate_details.*.rate' => 'required|numeric',
+            'spacial_rate_details.*.rate_xb' => 'required|numeric',
         ]);
-    
-        // Check if the new date range overlaps with any other existing record (excluding the current one)
-        $overlappingRecord = RoomSpecialRate::where('id', '!=', $item->id)
-            ->where(function ($query) use ($validatedData) {
-                $query->whereBetween('start_date', [$validatedData['start_date'], $validatedData['end_date']])
-                    ->orWhereBetween('end_date', [$validatedData['start_date'], $validatedData['end_date']])
-                    ->orWhere(function ($q) use ($validatedData) {
-                        $q->where('start_date', '<=', $validatedData['start_date'])
-                            ->where('end_date', '>=', $validatedData['end_date']);
-                    });
-            })->exists();
-    
-        if ($overlappingRecord) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Already has a special rate within this date range.',
-            ]);
-        }
-    
+
+        // Prevent overlapping dates
+//        $overlappingRecord = RoomSpecialRate::where('id', '!=', $item->id)
+//            ->where(function ($query) use ($validatedData) {
+//                $query->whereBetween('start_date', [$validatedData['start_date'], $validatedData['end_date']])
+//                    ->orWhereBetween('end_date', [$validatedData['start_date'], $validatedData['end_date']])
+//                    ->orWhere(function ($q) use ($validatedData) {
+//                        $q->where('start_date', '<=', $validatedData['start_date'])
+//                            ->where('end_date', '>=', $validatedData['end_date']);
+//                    });
+//            })->exists();
+//
+//        if ($overlappingRecord) {
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Already has a special rate within this date range.',
+//            ]);
+//        }
+
+        // Update main record
         $item->update([
             'name' => $validatedData['name'],
             'start_date' => $validatedData['start_date'],
             'end_date' => $validatedData['end_date'],
             'note' => $validatedData['note'],
+            'priority' => $validatedData['priority'],
         ]);
-    
-        if (!empty($validatedData['special_rate'])) {
-            $item->details()->delete();
-    
-            foreach ($validatedData['special_rate'] as $rate) {
+
+        // Replace details
+        $item->details()->delete();
+
+        if (!empty($validatedData['spacial_rate_details'])) {
+            foreach ($validatedData['spacial_rate_details'] as $rate) {
                 RoomSpecialRateDetail::create([
                     'special_rate_id' => $item->id,
-                    'category_id' => $rate['category_id'],
+                    'room_name_id' => $rate['room_name_id'],
                     'rate' => $rate['rate'],
                     'rate_xb' => $rate['rate_xb'],
                 ]);
             }
         }
-    
+
         return response()->json([
             'success' => true,
             'message' => 'Room special rate updated successfully',
