@@ -16,39 +16,39 @@ trait SaleRoomTrait
     public function saleRoomRules()
     {
         return [
-            'guest_id' => 'required|integer|min:1',
-            'temp_id' => 'required|integer|min:1',
-            'status' => 'required|in:tentative,checkedin',
-            'payment_details' => 'required|array',
+            'guest_id' => 'nullable|integer|min:1',
+            'temp_id' => 'nullable|integer|min:1',
+            'status' => 'nullable|in:tentative,checkedin',
+            'payment_details' => 'nullable|array',
 
             'payment_details.manualNetPrice' => 'nullable|numeric|min:0|max:999999.99',
             'payment_details.pendingNetPrice' => 'nullable|numeric|min:0|max:999999.99',
-            'payment_details.discountType' => 'required|string|in:no-discount,by-invoice,by-category,customize-rate',
+            'payment_details.discountType' => 'nullable|string|in:no-discount,by-invoice,by-category,customize-rate',
 
             // by-invoice data validation
-            'payment_details.byInvoiceDiscount' => 'required|array',
-            'payment_details.byInvoiceDiscount.percentage' => 'required|numeric|min:0|max:100',
-            'payment_details.byInvoiceDiscount.amount' => 'required|numeric|min:0|max:999999.99',
+            'payment_details.byInvoiceDiscount' => 'nullable|array',
+            'payment_details.byInvoiceDiscount.percentage' => 'nullable|numeric|min:0|max:100',
+            'payment_details.byInvoiceDiscount.amount' => 'nullable|numeric|min:0|max:999999.99',
 
             // by-category data validation
-            'payment_details.byCategoryDiscount ' => 'required|array',
-            'payment_details.byCategoryDiscount.*.room.amount' => 'required|numeric|min:0',
-            'payment_details.byCategoryDiscount.*.room.percentage' => 'required|numeric|min:0|max:100',
+            'payment_details.byCategoryDiscount ' => 'nullable|array',
+            'payment_details.byCategoryDiscount.*.room.amount' => 'nullable|numeric|min:0',
+            'payment_details.byCategoryDiscount.*.room.percentage' => 'nullable|numeric|min:0|max:100',
             'payment_details.byCategoryDiscount.*.xb.amount' => 'nullable|numeric|min:0',
             'payment_details.byCategoryDiscount.*.xb.percentage' => 'nullable|numeric|min:0|max:100',
 
             //customize-rate data validation
             'payment_details.customRates' => 'required|array',
-            'payment_details.customRates.*.roomRate' => 'required|numeric|min:0|max:999999.99',
-            'payment_details.customRates.*.room_qty' => 'required|numeric|min:0|max:999999.99',
-            'payment_details.customRates.*.xbRate' => 'required|numeric|min:0',
-            'payment_details.customRates.*.xb_qty' => 'required|numeric|min:0',
+            'payment_details.customRates.*.roomRate' => 'nullable|numeric|min:0|max:999999.99',
+            'payment_details.customRates.*.room_qty' => 'nullable|numeric|min:0|max:999999.99',
+            'payment_details.customRates.*.xbRate' => 'nullable|numeric|min:0',
+            'payment_details.customRates.*.xb_qty' => 'nullable|numeric|min:0',
 
-            'payment_details.masterRoom' => 'required|string|max:50',
-            'payment_details.saleType' => 'required|string|in:FIT,GROUP',
-            'payment_details.paxGuest' => 'required|integer|min:0|max:100',
-            'payment_details.eta' => 'required|string',
-            'payment_details.etd' => 'required|string',
+            'payment_details.masterRoom' => 'nullable|string|max:50',
+            'payment_details.saleType' => 'nullable|string|in:FIT,GROUP',
+            'payment_details.paxGuest' => 'nullable|integer|min:0|max:100',
+            'payment_details.eta' => 'nullable|string',
+            'payment_details.etd' => 'nullable|string',
             'payment_details.remarks' => 'nullable|string|max:400',
         ];
     }
