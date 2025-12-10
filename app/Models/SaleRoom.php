@@ -121,7 +121,7 @@ class SaleRoom extends Model
             ]);
     }
     /*To Checkout Guests*/
-    public function scopeOnDepartureGuests($query)
+            public function scopeOnDepartureGuests($query)
     {
         return $query->where('status', 'checkedin')
             ->where('date_checkout', '<', Carbon::today()->format('Y-m-d'));

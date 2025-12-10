@@ -1488,8 +1488,8 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-       // dd($request->all());
         $query = SaleRoom::with('note');
+//        return response()->json($query->get());
         if($request->filled('status') && $request->status != 'all'){
             if ($request->status == 'checkin-missed') {
                 $query->whereIn('status', ['tentative', 'guaranteed'])
@@ -1499,7 +1499,7 @@ class SaleRoomController extends Controller
                     ->where('date_checkin', '>=', \Illuminate\Support\Carbon::today()->toDateString());
             }elseif ($request->status == 'to-checkout') {
                 $query->whereIn('status', ['checkedin'])
-                    ->where('date_checkout', '>=', \Illuminate\Support\Carbon::today()->toDateString());
+                    ->where('date_checkout', '<', \Illuminate\Support\Carbon::today()->toDateString());
             }elseif ($request->status == 'checkout-missed') {
                 $query->whereIn('status', ['checkedin'])
                     ->where('date_checkout', '<=', \Illuminate\Support\Carbon::yesterday()->toDateString());
@@ -1514,10 +1514,13 @@ class SaleRoomController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                    ->orWhereHas('sale_guest', function ($guestQuery) use ($search) {
-                        $guestQuery->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%");
-                    });
+                    ->orWhere('guest_name_first', 'like', "%{$search}%")
+                    ->orWhere('guest_mobile', 'like', "%{$search}%")
+                    ->orWhere('guest_name_last', 'like', "%{$search}%");
+//                    ->orWhereHas('sale_guest', function ($guestQuery) use ($search) {
+//                        $guestQuery->where('first_name', 'like', "%{$search}%")
+//                            ->orWhere('last_name', 'like', "%{$search}%");
+//                    });
             });
         }
 
