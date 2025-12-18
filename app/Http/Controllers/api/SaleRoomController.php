@@ -28,6 +28,7 @@ use App\Models\Config;
 use App\Models\SaleRoom;
 use App\Models\SaleRoomAllocation;
 use App\Models\SaleRoomCategory;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use App\Services\ReportServices\MpdfService;
 use App\Traits\Formatter;
@@ -145,16 +146,15 @@ class SaleRoomController extends Controller
         $authenticatedUser = auth()->user();
         if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
-//        return response()->json($request->all());
-
         $validated = $request->validate([
-            "temp_id" => "nullable",
-            "rooms" => "required|array",
-            "rooms.*.room_number_id" => "required",
-            "rooms.*.room_category_id" => "required",
-            "rooms.*.bed" => "required|string|in:SGL,DBL,2 DBL,3 DBL,TWN,CPL,TPL",
-            "rooms.*.room_name_id" => "required",
-            "rooms.*.date" => "required|date",
+            "temp_id" => ["nullable", "numeric"],
+            "rooms" => ["required", "array"],
+            "rooms.*.room_number_id" => ["required"],
+            "rooms.*.room_category_id" => ["required"],
+            "rooms.*.room_name_id" => ["required"],
+            "rooms.*.bed" => ["required", "string", Rule::in(['SGL', 'DBL', '2 DBL', '3 DBL', 'TWN', 'CPL', 'TPL'])],
+            "rooms.*.rate" => ["required", "numeric"],
+            "rooms.*.date" => ["required", "date"],
         ]);
 
         DB::beginTransaction();
@@ -177,8 +177,9 @@ class SaleRoomController extends Controller
                     'room_temp_id' => $room_temp->id,
                     'room_number_id' => $room['room_number_id'],
                     'room_category_id' => $room['room_category_id'],
-                    'bed' => $room['bed'],
                     'room_name_id' => $room['room_name_id'],
+                    'bed' => $room['bed'],
+                    'rate' => $room['rate'],
                     'date' => $room['date'],
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -591,18 +592,16 @@ class SaleRoomController extends Controller
         ]);
     }
 
-    public function toggleRoomXb(RoomTempDetail $roomTempDetail)
+    public function toggleRoomXb(Request $request, RoomTempDetail $roomTempDetail)
     {
         $authenticatedUser = auth()->user();
         if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
-        if (!$roomTempDetail) {
-            abort(400, 'temp_id is required');
-        }
+        if (!$roomTempDetail) abort(400, 'temp_id is required');
 
-        $roomTempDetail->update([
-            'has_xb' => !$roomTempDetail->getRawOriginal('has_xb'),
-        ]);
+        $validated = $request->validate(["rate" => ["required", "numeric"]]);
+
+        $roomTempDetail->update(['has_xb' => !$roomTempDetail->getRawOriginal('has_xb'), 'rate_xb' => $validated['rate']]);
 
         $roomTempDetail->refresh();
 
@@ -1126,7 +1125,6 @@ class SaleRoomController extends Controller
 
             $validated = $request->validate($this->saleRoomRules());
 
-            // Load related temp data with category
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
                     'category',
@@ -1136,25 +1134,17 @@ class SaleRoomController extends Controller
                 ]);
             }])->findOrFail($validated['temp_id']);
 
-            // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
-            // Guest  & preferences
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
 
-            // Total price before any discounts
             $totalPrice = $validated['payment_details']['discountType'] == 'customize-rate' ?
                 $this->customRateTotal($validated['payment_details']['customRates'])
                 : $this->getTempDetailsTotalPrice($temp->details);
 
-//            $customTotal = $this->customRateTotal($validated['payment_details']['customRates']);
-
-            // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
-//            return response()->json($grossPrice);
 
-            // Group temp details by category and then by date
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
 
@@ -1168,7 +1158,6 @@ class SaleRoomController extends Controller
                 $validated['payment_details']['byCategoryDiscount']
             );
 
-            // Room info
             $roomNumberIds = $temp->details->pluck('room_number_id')->unique()->toArray();
             $roomNames = RoomNumber::whereIn('id', $roomNumberIds)->pluck('name')->toArray();
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
@@ -1189,8 +1178,8 @@ class SaleRoomController extends Controller
             );
 
             if ($sale->status == 'checkedin') $this->paymentService->confirmReservationAndAssociatedLedgerEntries($sale);
-
             $sale->preferences()->sync($preferences);
+
             $this->createSaleCategories(
                 $groupedData,
                 $byCategoryDiscount,
@@ -1199,10 +1188,8 @@ class SaleRoomController extends Controller
                 $sale->id,
                 $tempDetailsCollection
             );
-            $this->createSaleRoomAllocations(
-                $temp->details,
-                $sale->id
-            );
+
+            $this->createSaleRoomAllocations($temp->details, $sale->id);
 
             $temp->details()->delete();
             $temp->delete();
@@ -1322,13 +1309,13 @@ class SaleRoomController extends Controller
                 'date' => now(),
                 'price' => $totalPrice,
                 'vat_per' => $config['vat'],
-                'vat_amount' => number_format($grossPrice->vat_amount, 2),
+                'vat_amount' => $this->fixDecimal($grossPrice->vat_amount, 2),
                 'servicecharge_per' => $config['service-charge'],
                 'servicecharge_amount' => round($grossPrice->service_charge_amount, 2),
                 'price_gross' => $grossPrice->gross,
                 'discount_type' => $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
                 'discount_per' => $discountData['discount_per'],
-                'discount_amount' => number_format($discountData['discount_amount'], 2),
+                'discount_amount' => $this->fixDecimal($discountData['discount_amount'], 2),
                 'price_sale' => $priceSale,
                 'price_net' => $priceSale,
                 'remarks' => $validated['payment_details']['remarks'],
@@ -1488,8 +1475,8 @@ class SaleRoomController extends Controller
     }
     public function reservationList(Request $request)
     {
-       // dd($request->all());
         $query = SaleRoom::with('note');
+//        return response()->json($query->get());
         if($request->filled('status') && $request->status != 'all'){
             if ($request->status == 'checkin-missed') {
                 $query->whereIn('status', ['tentative', 'guaranteed'])
@@ -1499,7 +1486,7 @@ class SaleRoomController extends Controller
                     ->where('date_checkin', '>=', \Illuminate\Support\Carbon::today()->toDateString());
             }elseif ($request->status == 'to-checkout') {
                 $query->whereIn('status', ['checkedin'])
-                    ->where('date_checkout', '>=', \Illuminate\Support\Carbon::today()->toDateString());
+                    ->where('date_checkout', '<', \Illuminate\Support\Carbon::today()->toDateString());
             }elseif ($request->status == 'checkout-missed') {
                 $query->whereIn('status', ['checkedin'])
                     ->where('date_checkout', '<=', \Illuminate\Support\Carbon::yesterday()->toDateString());
@@ -1514,10 +1501,13 @@ class SaleRoomController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                    ->orWhereHas('sale_guest', function ($guestQuery) use ($search) {
-                        $guestQuery->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%");
-                    });
+                    ->orWhere('guest_name_first', 'like', "%{$search}%")
+                    ->orWhere('guest_mobile', 'like', "%{$search}%")
+                    ->orWhere('guest_name_last', 'like', "%{$search}%");
+//                    ->orWhereHas('sale_guest', function ($guestQuery) use ($search) {
+//                        $guestQuery->where('first_name', 'like', "%{$search}%")
+//                            ->orWhere('last_name', 'like', "%{$search}%");
+//                    });
             });
         }
 

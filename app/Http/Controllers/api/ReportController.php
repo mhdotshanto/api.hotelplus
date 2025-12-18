@@ -614,7 +614,7 @@ class ReportController extends Controller
             $mpdf->SetHTMLHeader($header);
             $mpdf->SetHTMLFooter($footer);
             $mpdf->WriteHTML($html);
-            $mpdf->Output("{$data->saleRoom->code}_Money_Receipt.pdf", 'I');
+            return $mpdf->Output("{$data->saleRoom->code}_Money_Receipt.pdf", 'I');
             // return response($mpdf->Output("money-receipt-{$id}.pdf", "S"))
             //     ->header('Content-Type', 'application/pdf')
             //     ->header('Content-Disposition', 'attachment; filename="money-receipt-' . $id . '.pdf"')
@@ -635,7 +635,8 @@ class ReportController extends Controller
             $mpdf->SetHTMLHeader($header);
             $mpdf->SetHTMLFooter($footer);
             $mpdf->WriteHTML($html);
-            return response($mpdf->Output("money-receipt-authenticated-{$mrNo}.pdf", "S"))->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="money-receipt-authenticated' . $mrNo . '.pdf"')->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+            return $mpdf->Output("money-receipt-authenticated-{$mrNo}.pdf", "I");
+//            return response()->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="money-receipt-authenticated' . $mrNo . '.pdf"')->header('Cache-Control', 'no-store, no-cache, must-revalidate');
         }
     }
     public function handleLargePdf()

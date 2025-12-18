@@ -18,7 +18,7 @@ use App\Http\Controllers\api\ConfigController;
 use App\Http\Controllers\api\ReportController;
 
 Route::get('test-api', function () {
-    return response()->json('working.....');
+    return response()->json(config('database.default'));
 });
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -137,10 +137,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('full-sale-cancellation/{saleRoom}', 'fullSaleCancellation');
         Route::post('refund-and-cancel-reservation/{saleRoom}', 'refundAndCancelReservation');
     });
-    Route::get('money-receipt-authenticated/{mrNo}', [ReportController::class, 'printMoneyReceiptAuthenticated'])->name('money-receipt-authenticated');
     Route::post('reservation/send-mail', [ReportController::class, 'sendReservationConfirmationMail'])->name('send.reservation.confirmation.mail');
     Route::post('ledger/send-mail', [ReportController::class, 'sendLedgerMail'])->name('send.ledger.mail');
 });
+Route::get('money-receipt-authenticated/{mrNo}', [ReportController::class, 'printMoneyReceiptAuthenticated'])->name('money-receipt-authenticated');
 Route::get('print-block-detail/{id}', [RoomBlockController::class, 'printBlockDetail']);
 Route::get('reservation', [ReportController::class, 'printReservationDetail'])->name('reservation');
 Route::get('ledger', [ReportController::class, 'ledgerReport'])->name('ledger');

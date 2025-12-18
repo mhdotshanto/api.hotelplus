@@ -16,6 +16,7 @@ class GuestController extends Controller
 {
     public function store(Request $request)
     {
+        $authenticatedUser = auth()->user();
         $validated = $request->validate([
             'guest_id'           => 'nullable|exists:guests,id',
             'temp_id'            => 'required|numeric',
@@ -50,12 +51,10 @@ class GuestController extends Controller
             'nationality_id'     => 'nullable|exists:countries,id',
             'preference_ids'     => 'nullable|array',
             'preference_ids.*'   => 'required|numeric',
-            'ref_id'       =>    'nullable|exists:users,id',
+//            'ref_id'       =>    'nullable|exists:users,id',
         ]);
-//        return response()->json($validated);
-        $validated['gender'] = $validated['gender'] ?? (
-            ['mr.' => 'Male', 'mrs.' => 'Female', 'miss' => 'Female'][strtolower($validated['name_address'] ?? '')] ?? null
-        );
+        $validated['ref_id'] = $authenticatedUser->id;
+        $validated['gender'] = $validated['gender'] ?? (['mr.' => 'Male', 'mrs.' => 'Female', 'miss' => 'Female'][strtolower($validated['name_address'] ?? '')] ?? null);
         try {
             DB::beginTransaction();
 

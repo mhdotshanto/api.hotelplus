@@ -32,7 +32,7 @@ class RoomNameController extends Controller
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'name' => 'required|string|max:40',
+            'name' => 'required|string|max:40|unique:room_names,name',
             'short_name' => 'required|string|max:16',
             'category_id' => 'required|integer|exists:room_categories,id',
             'bed' => 'nullable|string|in:SGL,DBL,2 DBL,3 DBL,TWN,CPL,TPL',

@@ -185,10 +185,7 @@ class RoomNumberController extends Controller
 
     public function destroy(RoomNumber $roomNumber)
     {
-        $roomNumber->update([
-            'is_active'=>!$roomNumber->is_active
-        ]);
-
+        $roomNumber->update(['is_active'=>!$roomNumber->is_active]);
         return response()->json([
             'success' => true,
             'message' => 'Room updated successfully',
