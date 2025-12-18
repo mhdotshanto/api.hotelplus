@@ -57,14 +57,14 @@ class MiscController extends Controller
 
     public function getInsertRoomSelectOption() {
         $data = [];
-        $data['categories'] = RoomCategory::all();
-        $data['room_names'] = RoomName::all();
-        $data['floors'] = RoomFloor::all();
+        $data['categories'] = RoomCategory::where('is_active', 1)->get();
+        $data['room_names'] = RoomName::where('is_active', 1)->get();
+        $data['floors'] = RoomFloor::where('is_active', 1)->get();
         return response()->json($data);
     }
 
     public function getCategoryOptions() {
-        $categories = RoomCategory::all();
+        $categories = RoomCategory::where('is_active', 1)->get();
         return response()->json($categories);
     }
 
@@ -121,25 +121,31 @@ class MiscController extends Controller
     public function getGlobalSearchOptions(Request $request)
     {
         $searchTerm = $request->get('searchTerm');
+        $statuses = $request->get('statuses');
 
-        $options = SaleRoom::query()
-            ->when($searchTerm, function ($query, $searchTerm) {
-                $query->whereIn('status', ['tentative', 'guaranteed', 'checkedin', 'postponed'])
-                ->where(function ($q) use ($searchTerm) {
-                    $q->where('code', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_name_first', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_name_last', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_mobile', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_mobile_emergency', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_email', 'like', "%{$searchTerm}%")
-                        ->orWhere('guest_company', 'like', "%{$searchTerm}%")
-                        ->orWhere('date_checkin', 'like', "%{$searchTerm}%")
-                        ->orWhere('date_checkout', 'like', "%{$searchTerm}%");
-                });
-            })
+        $query = SaleRoom::query();
+
+        if (!empty($statuses)) {
+            $query->whereIn('status', $statuses);
+        }
+
+        $query->when($searchTerm, function ($query, $searchTerm) {
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('code', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_name_first', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_name_last', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_mobile', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_mobile_emergency', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_email', 'like', "%{$searchTerm}%")
+                    ->orWhere('guest_company', 'like', "%{$searchTerm}%")
+                    ->orWhere('date_checkin', 'like', "%{$searchTerm}%")
+                    ->orWhere('date_checkout', 'like', "%{$searchTerm}%");
+            });
+        });
+
+        $options = $query
             ->orderByDesc('created_at')
-            ->limit(5)
-            ->get([
+            ->paginate(10, [
                 'id',
                 'code',
                 'guest_name_title',
@@ -154,6 +160,7 @@ class MiscController extends Controller
                 'rooms',
                 'master_room'
             ]);
+
         return response()->json($options);
     }
 

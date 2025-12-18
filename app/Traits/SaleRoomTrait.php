@@ -19,33 +19,31 @@ trait SaleRoomTrait
             'guest_id' => 'nullable|integer|min:1',
             'temp_id' => 'nullable|integer|min:1',
             'status' => 'nullable|in:tentative,checkedin',
+
             'payment_details' => 'nullable|array',
 
             'payment_details.manualNetPrice' => 'nullable|numeric|min:0|max:999999.99',
             'payment_details.pendingNetPrice' => 'nullable|numeric|min:0|max:999999.99',
-            'payment_details.discountType' => 'nullable|string|in:no-discount,by-invoice,by-category,customize-rate',
+            'payment_details.discountType' => 'nullable|in:no-discount,by-invoice,by-category,customize-rate',
 
-            // by-invoice data validation
             'payment_details.byInvoiceDiscount' => 'nullable|array',
             'payment_details.byInvoiceDiscount.percentage' => 'nullable|numeric|min:0|max:100',
             'payment_details.byInvoiceDiscount.amount' => 'nullable|numeric|min:0|max:999999.99',
 
-            // by-category data validation
-            'payment_details.byCategoryDiscount ' => 'nullable|array',
-            'payment_details.byCategoryDiscount.*.room.amount' => 'nullable|numeric|min:0',
-            'payment_details.byCategoryDiscount.*.room.percentage' => 'nullable|numeric|min:0|max:100',
-            'payment_details.byCategoryDiscount.*.xb.amount' => 'nullable|numeric|min:0',
-            'payment_details.byCategoryDiscount.*.xb.percentage' => 'nullable|numeric|min:0|max:100',
+            'payment_details.byCategoryDiscount' => 'nullable|array',
+            'payment_details.byCategoryDiscount.*.*.room.amount' => 'nullable|numeric|min:0',
+            'payment_details.byCategoryDiscount.*.*.room.percentage' => 'nullable|numeric|min:0|max:100',
+            'payment_details.byCategoryDiscount.*.*.xb.amount' => 'nullable|numeric|min:0',
+            'payment_details.byCategoryDiscount.*.*.xb.percentage' => 'nullable|numeric|min:0|max:100',
 
-            //customize-rate data validation
             'payment_details.customRates' => 'required|array',
-            'payment_details.customRates.*.roomRate' => 'nullable|numeric|min:0|max:999999.99',
-            'payment_details.customRates.*.room_qty' => 'nullable|numeric|min:0|max:999999.99',
-            'payment_details.customRates.*.xbRate' => 'nullable|numeric|min:0',
-            'payment_details.customRates.*.xb_qty' => 'nullable|numeric|min:0',
+            'payment_details.customRates.*.*.roomRate' => 'required|numeric|min:0',
+            'payment_details.customRates.*.*.room_qty' => 'required|integer|min:0',
+            'payment_details.customRates.*.*.xbRate' => 'required|numeric|min:0',
+            'payment_details.customRates.*.*.xb_qty' => 'required|integer|min:0',
 
             'payment_details.masterRoom' => 'nullable|string|max:50',
-            'payment_details.saleType' => 'nullable|string|in:FIT,GROUP',
+            'payment_details.saleType' => 'nullable|in:FIT,GROUP',
             'payment_details.paxGuest' => 'nullable|integer|min:0|max:100',
             'payment_details.eta' => 'nullable|string',
             'payment_details.etd' => 'nullable|string',
@@ -160,12 +158,14 @@ trait SaleRoomTrait
 
             $grossRate = $this->applyVatAndServiceCharge($item['roomName']['rate'])->gross;
 
+            $rateKey = round($item['roomName']['rate']) . '_' . round($item['roomName']['rate_xb']);
+
             if ($discountType === 'by-invoice') {
                 $discountPerItem = $discountPer;
                 $discountAmountItem = $grossRate * ($discountPerItem / 100);
                 $rateSale = $grossRate - $discountAmountItem;
             } elseif ($discountType === 'by-category') {
-                $discountPerItem = $currentCategory['room']['percentage'];
+                $discountPerItem = $currentCategory[$rateKey]['room']['percentage'];
                 $discountAmountItem = $grossRate * ($discountPerItem / 100);
                 $rateSale = $grossRate - $discountAmountItem;
             } else {
@@ -191,7 +191,7 @@ trait SaleRoomTrait
             if ($item['has_xb']) {
                 $grossXbRate = $this->applyVatAndServiceCharge($item['roomName']['rate_xb'])->gross;
                 if ($discountType === 'by-category') {
-                    $discountPerItem = $currentCategory['xb']['percentage'];
+                    $discountPerItem = $currentCategory[$rateKey]['xb']['percentage'];
                     $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
                     $rateSale = $grossXbRate - $discountAmountItem;
                 }
