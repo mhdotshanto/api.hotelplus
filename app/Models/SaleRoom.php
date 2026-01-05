@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Observers\SaleRoomObserver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -19,6 +20,11 @@ use Illuminate\Support\Carbon;
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
+
+    protected static function booted(): void
+    {
+        static::observe(SaleRoomObserver::class);
+    }
 
     protected static function boot()
     {
@@ -49,6 +55,16 @@ class SaleRoom extends Model
         return $this->hasMany(SaleRoomCategory::class,'sale_id', 'id');
     }
 
+    public function sale_room_allocation()
+    {
+        return $this->hasMany(SaleRoomAllocation::class, 'room_sale_id', 'id');
+    }
+
+    public function sale_tip()
+    {
+        return $this->hasMany(SaleTip::class, 'room_sale_id', 'id');
+    }
+
     public function masterRoom()
     {
         return $this->belongsTo(RoomNumber::class, 'master_room')->select(['id', 'name']);
@@ -62,11 +78,6 @@ class SaleRoom extends Model
             'sale_id',
             'preference_id'
         )->withTimestamps();
-    }
-
-    public function sale_room_allocation()
-    {
-        return $this->hasMany(SaleRoomAllocation::class, 'room_sale_id', 'id');
     }
 
     public function sale_guest()
@@ -121,7 +132,7 @@ class SaleRoom extends Model
             ]);
     }
     /*To Checkout Guests*/
-            public function scopeOnDepartureGuests($query)
+    public function scopeOnDepartureGuests($query)
     {
         return $query->where('status', 'checkedin')
             ->where('date_checkout', '<', Carbon::today()->format('Y-m-d'));

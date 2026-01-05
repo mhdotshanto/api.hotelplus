@@ -1148,6 +1148,8 @@ class SaleRoomController extends Controller
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
 
+
+
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
 
@@ -1186,10 +1188,18 @@ class SaleRoomController extends Controller
                 $discountType,
                 $discountData['discount_per'],
                 $sale->id,
-                $tempDetailsCollection
+                $tempDetailsCollection,
+                $validated['payment_details']['customRates']
             );
 
-            $this->createSaleRoomAllocations($temp->details, $sale->id);
+//            return response()->json($validated['payment_details']['customRates']);
+
+            $this->createSaleRoomAllocations(
+                $temp->details,
+                $sale->id,
+                $discountType,
+                $validated['payment_details']['customRates']
+            );
 
             $temp->details()->delete();
             $temp->delete();
