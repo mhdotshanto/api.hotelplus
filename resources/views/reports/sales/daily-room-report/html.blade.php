@@ -77,7 +77,7 @@
                     </tr>
                     @if($xb)
                         <tr>
-                            <td colspan="2" style="text-align:right; font-size:14px; vertical-align: middle;">Extra Bed :</td>
+                            <td colspan="2" style="text-align:right; font-size:16px; font-weight: bold; vertical-align: middle;">Extra Bed :</td>
                             <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $xb?->rate_sale ?? '-' }}</td>
                             <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $xb?->tip_amount ?? '-' }}</td>
                             <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $xb?->rate_net ?? '-' }}</td>
@@ -88,5 +88,35 @@
         </table>
     </div>
 
+    <div class="mt-4" style="margin-left: auto; width: 40%;">
+        <table class="table table-bordered">
+            <tbody>
+            <tr>
+                <th style="text-align:left;">Total Sold Room</th>
+                <td style="text-align:right;">{{ $summary['total_sold_room'] }}</td>
+            </tr>
+            <tr>
+                <th style="text-align:left;">Total Not Sold Room</th>
+                <td style="text-align:right;">{{ $summary['total_not_sold_room'] }}</td>
+            </tr>
+            <tr>
+                <th style="text-align:left;">Total Sale</th>
+                <td style="text-align:right;">{{ number_format($summary['total_sale'], 2) }}</td>
+            </tr>
+            <tr>
+                <th style="text-align:left;">Total Commission</th>
+                <td style="text-align:right;">{{ number_format($summary['total_commision'], 2) }}</td>
+            </tr>
+            <tr>
+                <th style="text-align:left;">Total Net Sale</th>
+                <td style="text-align:right;">{{ number_format($summary['total_net_sale'], 2) }}</td>
+            </tr>
+            <tr>
+                <th style="text-align:left;">Total Income</th>
+                <td style="text-align:right;">{{ number_format($summary['total_income'], 2) }}</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 @endsection
