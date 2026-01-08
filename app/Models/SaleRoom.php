@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property mixed $adjusted_amount
  * @property mixed $discount_note
  * @property mixed $user_id
- * @property mixed $guest_id
+ * @property mixed $guest_id0
  */
 class SaleRoom extends Model
 {
@@ -62,7 +62,7 @@ class SaleRoom extends Model
 
     public function sale_tip()
     {
-        return $this->hasMany(SaleTip::class, 'room_sale_id', 'id');
+        return $this->hasMany(SaleTip::class, 'sale_room_id', 'id');
     }
 
     public function masterRoom()

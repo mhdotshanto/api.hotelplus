@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
+use App\Models\RoomName;
+use App\Models\RoomNumber;
 use Illuminate\Http\Request;
 use App\Models\SaleRoom;
 use App\Services\ReportServices\ReportService;
@@ -271,57 +273,125 @@ class ReportController extends Controller
             ]);
 
             $validated['roomType'] = $validated['roomType'] ?? "all";
-//            return response()->json($validated);
-            if ($validated) {
-                $output = $validated['output'];
-                $data = $this->reportService->getDailyRoomData($validated);
-                $data['routes']['pdf']= route(
-                    'daily-room-report',[
-                        'output' => 'pdf',
-                        'date' => $validated['date'],
-                        'roomType' => $validated['roomType'],
-                    ]
-                );
-                $data['routes']['excel'] = route(
-                    'daily-room-report',
-                    [
-                        'output' => 'excel',
-                        'date' => $validated['date'],
-                        'roomType' => $validated['roomType'],
-                    ]
-                );
-                $data['title'] = "Daily Room Report";
+            $output = $validated['output'];
 
-                //dd($data);
-            } else {
-                return response()->json([
-                    'message' => 'Validation Failed',
-                ], 400);
-            };
+            $roomData = RoomNumber::with([
+                    'roomName' => function ($roomNameQry) {
+                        $roomNameQry->select('id', 'category_id')
+                            ->with('category', function ($categoryQry) {
+                                $categoryQry->select('id', 'name');
+                            });
+                    },
+                    'room_sale_allocation' => function ($roomSaleAllocationQry) use($validated) {
+                        $roomSaleAllocationQry
+                            ->whereDate('date', $validated['date'])
+                            ->with('saleRoom', function ($saleRoomQry) {
+                                $saleRoomQry->with([
+                                        'sale_agent' => function ($saleAgentQry) {
+                                            $saleAgentQry->select('id', 'name', 'user_name');
+                                        },
+                                        'sale_user' => function ($saleUserQry) {
+                                            $saleUserQry->select('id', 'name', 'user_name');
+                                        },
+                                        'sale_tip'
+                                    ])
+                                    ->select(
+                                        'id',
+                                        'code',
+                                        'guest_name_title',
+                                        'guest_name_first',
+                                        'guest_name_last',
+                                        'guest_mobile',
+                                        'guest_address',
+                                        'guest_qty',
+                                        'ref_id',
+                                        'user_id',
+                                        'date_checkin',
+                                        'date_checkout',
+                                        'status'
+                                    );
+                            })
+                            ->select(
+                                'id',
+                                'room_sale_id',
+                                'room_number_id',
+                                'rate_sale',
+                                'tip_amount',
+                                'rate_net'
+                            );
+                    }
+                ])
+                ->select(
+                    'id',
+                    'name',
+                    'room_name_id'
+                )
+                ->get();
+            $allocations = $roomData->pluck('room_sale_allocation')->flatten();
+            $summary = collect([
+                'total_not_sold_room' => fn () => $roomData->where(
+                    fn ($r) => $r->room_sale_allocation->isEmpty()
+                )->count(),
 
-            $name = "Daily Room Report";
-            if ($output === 'html') {
-                if ($data) {
-                    return view('reports.sales.daily-room-report.html')->with(['data' => $data]);
-                }
-            } elseif ($output === "excel") {
-                if ($data) {
-                    return Excel::download(
-                        new DailyRoomExport($data, $name),
-                        "{$name}.xlsx"
-                    );
-                }
-            } elseif($output=="pdf") {
-                //dd($data);
-                $html = view('reports.sales.daily-room-report.pdf')->with(['data' => $data, 'title' => $name])->render();
+                'total_sold_room' => fn () => $roomData->where(
+                    fn ($r) => $r->room_sale_allocation->isNotEmpty()
+                )->count(),
+
+                'total_sale' => fn () => $allocations->sum('rate_sale'),
+                'total_commision' => fn () => $allocations->sum('tip_amount'),
+                'total_net_sale' => fn () => $allocations->sum('rate_net'),
+                'total_income' => fn () => $allocations->sum('rate_net'),
+            ])->map(fn ($fn) => $fn());
+            $data = [
+                'title' => "Daily Room Report",
+                'rooms' => $roomData,
+                'routes' => [
+                    'pdf' => route(
+                        'daily-room-report',[
+                            'output' => 'pdf',
+                            'date' => $validated['date'],
+                            'roomType' => $validated['roomType'],
+                        ]
+                    ),
+                    'excel' => route(
+                        'daily-room-report',
+                        [
+                            'output' => 'excel',
+                            'date' => $validated['date'],
+                            'roomType' => $validated['roomType'],
+                        ]
+                    )
+                ],
+                'summary' => $summary
+            ];
+//            return response()->json($data);
+//            $data['routes']['pdf']= route(
+//                'daily-room-report',[
+//                    'output' => 'pdf',
+//                    'date' => $validated['date'],
+//                    'roomType' => $validated['roomType'],
+//                ]
+//            );
+//            $data['routes']['excel'] = route(
+//                'daily-room-report',
+//                [
+//                    'output' => 'excel',
+//                    'date' => $validated['date'],
+//                    'roomType' => $validated['roomType'],
+//                ]
+//            );
+            if($output === 'html') return view('reports.sales.daily-room-report.html')->with($data);
+            if($output === 'excel') return Excel::download(new DailyRoomExport($data, $data['title']),"{$data['title']}.xlsx");
+            if($output === 'pdf') {
+                $html = view('reports.sales.daily-room-report.pdf')->with(['data' => $data, 'title' => $data['title']])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
-                $this->mpdfService->mpdf($name);
+                $this->mpdfService->mpdf($data['title']);
                 $mpdf = $this->mpdfService->getMpdf();
                 $mpdf->SetHTMLHeader($header);
                 $mpdf->SetHTMLFooter($footer);
                 $mpdf->WriteHTML($html);
-                $mpdf->Output("{$name}.pdf", 'I');
+                $mpdf->Output("{$data['title']}.pdf", 'I');
             }
         } catch (\Exception $e) {
             return response()->json([
@@ -329,8 +399,8 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 422);
         }
-
     }
+
     public function inhouseGuestReport(Request $request)
     {
         try {

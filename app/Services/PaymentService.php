@@ -501,6 +501,7 @@ class PaymentService
         );
     }
 
+    //insert reservation tip ledger entry
     public function reservationTipLedgersEntry(AccVoucher $voucher)
     {
         //sale ledger entry (acc_type:sale)
@@ -538,10 +539,10 @@ class PaymentService
         }
     }
 
-    //insert reservation refund cashbook entry
+    //insert reservation tip cashbook entry
     public function reservationTipCashbookEntry(AccVoucher $voucher)
     {
-        // cashbook entry for refund amount (acc_type:sale) credit side
+        // cashbook entry for tip amount (acc_type:sale) credit side
         $this->insertCashbookEntry(
             accType: AccType::SALE,
             voucher: $voucher,
@@ -549,7 +550,7 @@ class PaymentService
             isCash: $voucher->payment_method === 'cash',
         );
 
-        // if bank payment then cashbook entry for refund amount (acc_type:bank) debit side
+        // if bank payment then cashbook entry for tip amount (acc_type:bank) debit side
         if ($voucher->payment_method == 'bank') {
             $this->insertCashbookEntry(
                 accType: AccType::BANK,
@@ -568,4 +569,8 @@ class PaymentService
         }
     }
 
+    public function adjustLedgersForSaleTip(AccVoucher $voucher){
+        $this->reservationTipLedgersEntry($voucher);
+        $this->reservationTipCashbookEntry($voucher);
+    }
 }

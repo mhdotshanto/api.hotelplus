@@ -154,9 +154,9 @@ Route::get('guest-report-by-date', [ReportController::class, 'guestReportByDate'
 Route::get('money-receipt/{id}', [ReportController::class, 'printMoneyReceipt'])->name('money-receipt');
 
 //test route
-Route::get('test-sale-tip-observer', function () {
+Route::get('test-sale-room-category-map', function () {
     $saleTip = \App\Models\SaleTip::create([
-        "sale_room_id"  => 10209,
+        "sale_room_id"  => 10221,
         "name"          => "testing-tip",
         "contact_no"    => "01711075844",
         "note"          => "test tip note",

@@ -22,7 +22,7 @@ class SaleTipObserver
             $saleRoom->refresh();
             $price_sale = $saleRoom->price_sale - $saleRoom->adjusted_amount;
             $tipPercentage = $saleRoom->price_sale > 0 ? $this->fixDecimal(($saleRoom->tip_amount / $price_sale) * 100) : 0;
-            $saleRoom->updateQuietly(['tip_per' => $tipPercentage]);
+            $saleRoom->update(['tip_per' => $tipPercentage]);
         });
     }
 

@@ -1128,9 +1128,6 @@ class SaleRoomController extends Controller
             $temp = RoomTemp::with(['details' => function ($tempDetailsQuery) {
                 $tempDetailsQuery->with([
                     'category',
-                    'roomName' => function ($roomNameQuery) {
-                        $roomNameQuery->select('id', 'name', 'bed', 'rate', 'rate_xb');
-                    }
                 ]);
             }])->findOrFail($validated['temp_id']);
 
@@ -1147,8 +1144,6 @@ class SaleRoomController extends Controller
 
             $tempDetailsCollection = collect($temp->details);
             $groupedData = $tempDetailsCollection->groupBy(fn($item, $key) => $item['category']['name'] . " | " . $item['date'] . " | " . $item['roomName']['bed']);
-
-
 
             $discountType = $validated['payment_details']['discountType'];
             $byCategoryDiscount = collect($validated['payment_details']['byCategoryDiscount']);
@@ -1192,13 +1187,11 @@ class SaleRoomController extends Controller
                 $validated['payment_details']['customRates']
             );
 
-//            return response()->json($validated['payment_details']['customRates']);
+//            return response()->json($data);
 
             $this->createSaleRoomAllocations(
                 $temp->details,
                 $sale->id,
-                $discountType,
-                $validated['payment_details']['customRates']
             );
 
             $temp->details()->delete();

@@ -12,10 +12,26 @@ class SaleRoomObserver
     protected function updateSaleRoomCategories(SaleRoom $saleRoom): void
     {
         $tipPer = (float) $saleRoom->tip_per;
-        $saleRoom->loadMissing('roomCategories');
-        $saleRoom->roomCategories->each(function ($category) use ($tipPer) {
+        $saleRoom->loadMissing('room_categories');
+        $saleRoom->room_categories->each(function ($category) use ($tipPer) {
             $tipAmount = $this->fixDecimal(($category->rate_sale * $tipPer) / 100);
-            $category->updateQuietly([ 'tip_amount' => $tipAmount ]);
+            $category->updateQuietly([
+                'tip_amount' => $tipAmount,
+                'rate_net' => $this->fixDecimal($category->rate_sale - $tipAmount)
+            ]);
+        });
+    }
+
+    protected function updateSaleRoomAllocation(SaleRoom $saleRoom): void
+    {
+        $tipPer = (float) $saleRoom->tip_per;
+        $saleRoom->loadMissing('sale_room_allocation');
+        $saleRoom->sale_room_allocation->each(function ($allocation) use ($tipPer) {
+            $tipAmount = $this->fixDecimal(($allocation->rate_sale * $tipPer) / 100);
+            $allocation->updateQuietly([
+                'tip_amount' => $tipAmount,
+                'rate_net' => $this->fixDecimal($allocation->rate_sale - $tipAmount)
+            ]);
         });
     }
 
@@ -32,7 +48,10 @@ class SaleRoomObserver
      */
     public function updated(SaleRoom $saleRoom): void
     {
-        if ($saleRoom->wasChanged(['tip_per', 'tip_amount'])) $this->updateSaleRoomCategories($saleRoom);
+        if ($saleRoom->wasChanged(['tip_per', 'tip_amount'])){
+            $this->updateSaleRoomCategories($saleRoom);
+            $this->updateSaleRoomAllocation($saleRoom);
+        }
     }
 
     /**
