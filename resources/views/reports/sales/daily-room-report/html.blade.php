@@ -2,8 +2,7 @@
 @section('content')
 <div class="fo-12 top-5">
     <div class="text-center p-0 m-0 fo-12 border-top border-bottom mt-4" style="font-size:22px">DAILY ROOM REPORT</div>
-    <div class="text-center p-0 m-0 fo-12 mt-4"><strong>DATE:</strong> 09/01/2024</div>
-
+    <div class="text-center p-0 m-0 fo-12 mt-4"><strong>DATE:</strong> {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</div>
     <div class="mt-3">
         <table class="table border">
             <tbody>

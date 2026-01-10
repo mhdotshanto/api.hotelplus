@@ -24,6 +24,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Services\EmailServices;
 use App\Traits\Formatter;
+use mysql_xdevapi\Exception;
+
 class ReportController extends Controller
 {
     use Formatter;
@@ -81,80 +83,9 @@ class ReportController extends Controller
         }
 
     }
-    public function checkinReport(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'output' => 'required|string',
-                'date_from' => 'required|date',
-                'date_to' => 'required|date',
-                'references' => 'nullable|array',
-                'references.*' => 'string',
-            ]);
-            $validated['references'] = $validated['references'] ?? null;
-            $name = "Checkin Report";
-            if ($validated) {
-                $output = $validated['output'];
-                $data = $this->reportService->getCheckinData($validated);
-                $data['routes']['pdf'] = route(
-                    'checkedin',
-                    [
-                        'output' => 'pdf',
-                        'date_from' => $validated['date_from'],
-                        'date_to' => $validated['date_to'],
-                        'references' => $validated['references'],
-                    ]
-                );
-                $data['routes']['excel'] = route(
-                    'checkedin',
-                    [
-                        'output' => 'excel',
-                        'date_from' => $validated['date_from'],
-                        'date_to' => $validated['date_to'],
-                        'references' => $validated['references'],
-                    ]
-                );
-                $data['title'] = $name;
-            } else {
-                return response()->json([
-                    'message' => 'Validation Failed',
-                ], 400);
-            };
 
-
-            if ($output === 'html') {
-                if ($data) {
-                    return view('reports.sales.checkin.html')->with(['data' => $data]);
-                }
-            } elseif ($output === "excel") {
-                if ($data) {
-                    return Excel::download(
-                        new CheckinExport($data, $name),
-                        "{$name}.xlsx"
-                    );
-                }
-            } elseif($output=="pdf") {
-                $html = view('reports.sales.checkin.pdf')->with(['data' => $data])->render();
-                $header = view('reports.layouts.pdf.header')->render();
-                $footer = view('reports.layouts.pdf.footer')->render();
-                $this->mpdfService->mpdf($name);
-                $mpdf = $this->mpdfService->getMpdf();
-                $mpdf->SetHTMLHeader($header);
-                $mpdf->SetHTMLFooter($footer);
-                $mpdf->WriteHTML($html);
-                $mpdf->Output("{$name}.pdf", 'I');
-            }
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Something Went Wrong!',
-                'error' => $e->getMessage()
-            ], 422);
-        }
-
-    }
     public function printReservationDetail(Request $request)
     {
-        //dd($request->all());
          try {
             $name = "Reservation Confirmation";
             $validated = $request->validate([
@@ -169,7 +100,6 @@ class ReportController extends Controller
                 ], 400);
             };
 
-            //dd($output);
             $data = $this->reportService->getReservationDetail($token);
 
             if ($data) {
@@ -191,9 +121,9 @@ class ReportController extends Controller
             ], 422);
         }
     }
+
     public function checkoutReport(Request $request)
     {
-       // dd($request->all());
         try {
             $validated = $request->validate([
                 'output' => 'required|string',
@@ -202,58 +132,191 @@ class ReportController extends Controller
                 'references' => 'nullable|array',
                 'references.*' => 'string',
             ]);
-            $validated['references'] = $validated['references'] ?? null;
-            $name = "Checkout Report";
-            if ($validated) {
-                $output = $validated['output'];
-                $data = $this->reportService->getCheckoutData($validated);
-                $data['routes']['pdf'] = route(
-                    'checkedout',
-                    [
-                        'output' => 'pdf',
-                        'date_from' => $validated['date_from'],
-                        'date_to' => $validated['date_to'],
-                        'references' => $validated['references'],
-                    ]
-                );
-                $data['routes']['excel'] = route(
-                    'checkedout',
-                    [
-                        'output' => 'excel',
-                        'date_from' => $validated['date_from'],
-                        'date_to' => $validated['date_to'],
-                        'references' => $validated['references'],
-                    ]
-                );
-                $data['title'] = $name;
-            } else {
-                return response()->json([
-                    'message' => 'Validation Failed',
-                ], 400);
-            };
 
+            $saleRoomQuery = SaleRoom::with([
+                    'sale_agent' => function ($saleAgentQry) {
+                        $saleAgentQry->select('id', 'name', 'user_name');
+                    },
+                ])
+                ->withSum('saleLedgers as total_debit', 'debit')
+                ->withSum('saleLedgers as total_credit', 'credit')
+                ->where('status', 'checkedout')
+                ->whereBetween('created_at', [
+                    Carbon::parse($validated['date_from'])->startOfDay(),
+                    Carbon::parse($validated['date_to'])->endOfDay(),
+                ])
+                ->select(
+                    'id',
+                    'code',
+                    'date_checkin',
+                    'date_checkout',
+                    'guest_name_title',
+                    'guest_name_first',
+                    'guest_name_last',
+                    'guest_mobile',
+                    'ref_id',
+                    'room_qty',
+                    'price_gross',
+                    'price_net',
+                    'tip_amount',
+                    'date',
+                );
 
-            if ($output === 'html') {
-                if ($data) {
-                    return view('reports.sales.checkout.html')->with(['data' => $data]);
-                }
-            } elseif ($output === "excel") {
-                if ($data) {
-                    return Excel::download(
-                        new CheckoutExport($data, $name),
-                        "{$name}.xlsx"
-                    );
-                }
-            } elseif($output=="pdf") {
+            if (!empty($validated['references'])) $saleRoomQuery->whereIn('ref_id', $validated['references']);
+
+            $saleRoomData = $saleRoomQuery->get();
+
+            $totals = [
+                'room_qty' => $saleRoomData->sum('room_qty'),
+                'gross_price' => $saleRoomData->sum('price_gross'),
+                'net_price' => $saleRoomData->sum('price_net'),
+                'due' => $saleRoomData->sum('total_due'),
+                'tip' => $saleRoomData->sum('tip_amount'),
+            ];
+
+            $data = [
+                'title' => "Checkout Report",
+                'from_date' => $validated['date_from'],
+                'to_date' => $validated['date_to'],
+                'saleRooms' => $saleRoomData,
+                'sale_agents' => isset($validated['references']) ? $saleRoomData->pluck('sale_agent.name')->unique()->values() : null,
+                'totals' => $totals,
+                'routes' => [
+                    'pdf' => route(
+                        'checkedout',[
+                            'output' => 'pdf',
+                            'date_from' => $validated['date_from'],
+                            'date_to' => $validated['date_to'],
+                            'references' => $validated['references'] ?? null,
+                        ]
+                    ),
+                    'excel' => route(
+                        'checkedout',
+                        [
+                            'output' => 'excel',
+                            'date_from' => $validated['date_from'],
+                            'date_to' => $validated['date_to'],
+                            'references' => $validated['references'] ?? null,
+                        ]
+                    )
+                ],
+            ];
+
+//            return response()->json($data);
+
+            if ($validated['output'] === 'html') return view('reports.sales.checkout.html')->with($data);
+            if ($validated['output'] === "excel") return Excel::download(new CheckoutExport($data, $data['title']),"{$data['title']}.xlsx");
+            if($validated['output'] === "pdf") {
                 $html = view('reports.sales.checkout.pdf')->with(['data' => $data])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();
-                $this->mpdfService->mpdf($name);
+                $this->mpdfService->mpdf($data['title']);
                 $mpdf = $this->mpdfService->getMpdf();
                 $mpdf->SetHTMLHeader($header);
                 $mpdf->SetHTMLFooter($footer);
                 $mpdf->WriteHTML($html);
-                $mpdf->Output("{$name}.pdf", 'I');
+                $mpdf->Output("{$data['title']}.pdf", 'I');
+            }
+        }catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something Went Wrong!',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function checkinReport(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'output' => 'required|string',
+                'date_from' => 'required|date',
+                'date_to' => 'required|date',
+                'references' => 'nullable|array',
+                'references.*' => 'string',
+            ]);
+
+            $saleRoomQuery = SaleRoom::with([
+                    'sale_agent' => function ($saleAgentQry) {
+                        $saleAgentQry->select('id', 'name', 'user_name');
+                    },
+                ])
+                ->withSum('saleLedgers as total_debit', 'debit')
+                ->withSum('saleLedgers as total_credit', 'credit')
+                ->where('status', 'checkedin')
+                ->whereBetween('created_at', [
+                    Carbon::parse($validated['date_from'])->startOfDay(),
+                    Carbon::parse($validated['date_to'])->endOfDay(),
+                ])
+                ->select(
+                    'id',
+                    'code',
+                    'date_checkin',
+                    'date_checkout',
+                    'guest_name_title',
+                    'guest_name_first',
+                    'guest_name_last',
+                    'guest_mobile',
+                    'ref_id',
+                    'room_qty',
+                    'price_gross',
+                    'price_net',
+                    'tip_amount',
+                    'date',
+                );
+
+            if (!empty($validated['references'])) $saleRoomQuery->whereIn('ref_id', $validated['references']);
+
+            $saleRoomData = $saleRoomQuery->get();
+
+            $totals = [
+                'room_qty' => $saleRoomData->sum('room_qty'),
+                'gross_price' => $saleRoomData->sum('price_gross'),
+                'net_price' => $saleRoomData->sum('price_net'),
+                'due' => $saleRoomData->sum('total_due'),
+                'tip' => $saleRoomData->sum('tip_amount'),
+            ];
+
+            $data = [
+                'title' => "Checkin Report",
+                'from_date' => $validated['date_from'],
+                'to_date' => $validated['date_to'],
+                'saleRooms' => $saleRoomData,
+                'sale_agents' => isset($validated['references']) ? $saleRoomData->pluck('sale_agent.name')->unique()->values() : null,
+                'totals' => $totals,
+                'routes' => [
+                    'pdf' => route(
+                        'checkedin',[
+                            'output' => 'pdf',
+                            'date_from' => $validated['date_from'],
+                            'date_to' => $validated['date_to'],
+                            'references' => $validated['references'] ?? null,
+                        ]
+                    ),
+                    'excel' => route(
+                        'checkedin',
+                        [
+                            'output' => 'excel',
+                            'date_from' => $validated['date_from'],
+                            'date_to' => $validated['date_to'],
+                            'references' => $validated['references'] ?? null,
+                        ]
+                    )
+                ],
+            ];
+
+            if ($validated['output'] === 'html') return view('reports.sales.checkin.html')->with($data);
+            if ($validated['output'] === "excel") return Excel::download( new CheckinExport($data, $data['title']), "{$data['title']}.xlsx");
+            if($validated['output'] == "pdf") {
+                $html = view('reports.sales.checkin.pdf')->with(['data' => $data])->render();
+                $header = view('reports.layouts.pdf.header')->render();
+                $footer = view('reports.layouts.pdf.footer')->render();
+                $this->mpdfService->mpdf($data['title']);
+                $mpdf = $this->mpdfService->getMpdf();
+                $mpdf->SetHTMLHeader($header);
+                $mpdf->SetHTMLFooter($footer);
+                $mpdf->WriteHTML($html);
+                $mpdf->Output("{$data['title']}.pdf", 'I');
             }
         } catch (\Exception $e) {
             return response()->json([
@@ -263,6 +326,7 @@ class ReportController extends Controller
         }
 
     }
+
     public function dailyRoomReport(Request $request)
     {
         try {
@@ -273,7 +337,6 @@ class ReportController extends Controller
             ]);
 
             $validated['roomType'] = $validated['roomType'] ?? "all";
-            $output = $validated['output'];
 
             $roomData = RoomNumber::with([
                     'roomName' => function ($roomNameQry) {
@@ -345,6 +408,7 @@ class ReportController extends Controller
             $data = [
                 'title' => "Daily Room Report",
                 'rooms' => $roomData,
+                'date' => $validated['date'],
                 'routes' => [
                     'pdf' => route(
                         'daily-room-report',[
@@ -364,25 +428,9 @@ class ReportController extends Controller
                 ],
                 'summary' => $summary
             ];
-//            return response()->json($data);
-//            $data['routes']['pdf']= route(
-//                'daily-room-report',[
-//                    'output' => 'pdf',
-//                    'date' => $validated['date'],
-//                    'roomType' => $validated['roomType'],
-//                ]
-//            );
-//            $data['routes']['excel'] = route(
-//                'daily-room-report',
-//                [
-//                    'output' => 'excel',
-//                    'date' => $validated['date'],
-//                    'roomType' => $validated['roomType'],
-//                ]
-//            );
-            if($output === 'html') return view('reports.sales.daily-room-report.html')->with($data);
-            if($output === 'excel') return Excel::download(new DailyRoomExport($data, $data['title']),"{$data['title']}.xlsx");
-            if($output === 'pdf') {
+            if($validated['output'] === 'html') return view('reports.sales.daily-room-report.html')->with($data);
+            if($validated['output'] === 'excel') return Excel::download(new DailyRoomExport($data, $data['title']),"{$data['title']}.xlsx");
+            if($validated['output'] === 'pdf') {
                 $html = view('reports.sales.daily-room-report.pdf')->with(['data' => $data, 'title' => $data['title']])->render();
                 $header = view('reports.layouts.pdf.header')->render();
                 $footer = view('reports.layouts.pdf.footer')->render();

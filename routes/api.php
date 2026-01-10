@@ -164,3 +164,5 @@ Route::get('test-sale-room-category-map', function () {
     ]);
     return response()->json($saleTip);
 });
+
+Route::get('payments-summery/{saleId}', [ \App\Http\Controllers\api\PaymentController::class, 'getPaymentSummary']);

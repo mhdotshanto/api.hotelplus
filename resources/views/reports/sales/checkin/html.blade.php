@@ -1,56 +1,60 @@
-{{-- foreach ($roomSaleData as $room) {
-    echo $room->payment;     // total payments
-    echo $room->refund;      // total refunds
-    echo $room->adjustment;  // total adjustments
-    echo $room->tip;         // total tips
-} --}}
 @extends('reports.layouts.html.main')
 @section('content')
-<div class="fo-12 top-5">
-    <p class="text-center p-0 m-0 fo-12" style="font-size:22px">CHECKIN REPORT</p>
-   <p class="text-center p-0 m-0 fo-12" style="font-size:18px"><strong>DATE:</strong> {{ $data['from_date'] }} TO {{ $data['to_date'] }}</p>
-   <p class="text-center p-0 m-0 fo-12" style="font-size:16px"><strong>STAFF:</strong> {{ $data['sale_agents'] }}</p>
-    <div class="mt-3">
-        <table class="table table-bordered border-default">
-        <tbody>
-            <tr class="ledger-header">
-                <th>RES#</th>
-                <th>DATE</th>
-                <th>RES PERIOD</th>
-                <th>GUEST</th>
-                <th>REFERENCE</th>
-                <th>ROOM</th>
-                <th>GROSS PRICE</th>
-                <th>NET PRICE</th>
-                <th>DUE</th>
-                <th>TIP</th>
-            </tr>
-            @foreach ($data['checkinData'] as $item)
-                <tr class="ledger-details">
-                <td width="20%" style="text-align:left">{{$item->code}}</td>
-                <td width="20%">{{\Carbon\Carbon::parse($item->date)->format('d/m/Y')}}</td>
-                <td width="20%" style="text-align:left">{{\Carbon\Carbon::parse($item->date_checkin)->format('d/m/Y')}} - {{\Carbon\Carbon::parse($item->date_checkout)->format('d/m/Y')}}</td>
-                <td width="20%" style="text-align:left"><p>{{$item->guest_name_title}} {{$item->guest_name_first}} {{$item->guest_name_last}}</p><p>
-                    {{$item->guest_mobile}}</p></td>
-                    <td width="20%" style="text-align:left">{{$item->sale_agent?$item->sale_agent->name:""}}</td>
-                    <td width="20%" style="text-align:center">{{$item->room_qty}}</td>
-                    <td width="20%" style="text-align:right">{{bdt_format($item->price_gross)}}</td>
-                    <td width="20%" style="text-align:right">{{bdt_format($item->price_net)}}</td>
-                    <td width="20%" style="text-align:right">{{$item->due}}</td>
-                    <td width="20%" style="text-align:right">{{$item->tip}}</td>
-                </tr>                
-            @endforeach
-            <tr>
-                    <td colspan="5" style="text-align:left"><strong>Total:</strong></td>
-                    <td style="text-align:center"><strong>{{$data['total_rooms']}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_gross_price'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_net_price'])}}</strong></td>
-                    <td style="text-align:right"><strong>{{bdt_format($data['total_due'])}}</strong></td>
-                    <td style="text-align:right"><strong>0.00</strong></td>
-                </tr>                
-        </tbody>
-    </table>
-    </div>  
-   
-</div>
+    <div class="fo-12 top-5">
+        <p class="text-center p-0 m-0 fo-12" style="font-size:22px">CHECKOUT REPORT</p>
+        <p class="text-center p-0 m-0 fo-12" style="font-size:18px"><strong>DATE:</strong> {{ $from_date }} TO {{ $to_date }}</p>
+        <p class="text-center p-0 m-0 fo-12" style="font-size:16px"><strong>STAFF: </strong>{{ !is_null($sale_agents) ? $sale_agents : "All" }}</p>
+        <div class="mt-3">
+            <table class="table border">
+                <tr style="font-size:11px;">
+                    <th style="text-align:center;">SL#</th>
+                    <th style="text-align:center;">RES#</th>
+                    <th style="text-align:center;">DATE</th>
+                    <th style="text-align:center;">RES PERIOD</th>
+                    <th style="text-align:center;">GUEST</th>
+                    <th style="text-align:center;">REFERENCE</th>
+                    <th style="text-align:center;">ROOM</th>
+                    <th style="text-align:center;">GROSS PRICE</th>
+                    <th style="text-align:center;">NET PRICE</th>
+                    <th style="text-align:center;">DUE</th>
+                    <th style="text-align:center;">TIP</th>
+                </tr>
+                @foreach ($saleRooms as $sale)
+                    <tr>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $loop->iteration }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->code }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">
+                            {{ \Carbon\Carbon::parse($sale->date)->format('d/m/Y') }}
+                        </td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">
+                            {{ \Carbon\Carbon::parse($sale->date_checkin)->format('d/m/Y') }}
+                            <br>
+                            to
+                            <br>
+                            {{ \Carbon\Carbon::parse($sale->date_checkout)->format('d/m/Y') }}
+                        </td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">
+                            {{ $sale?->guest_name_title ?? '-' }} {{ $sale?->guest_name_first ?? '' }} {{ $sale?->guest_name_last ?? '' }}
+                            <br>
+                            {{ $sale->guest_mobile }}
+                        </td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->sale_agent?->name ?? '-' }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->room_qty }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->price_gross }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->price_net }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->total_due }}</td>
+                        <td style="text-align:center; font-size:12px; vertical-align: middle;">{{ $sale->tip_amount }}</td>
+                    </tr>
+                @endforeach
+                <tr style="font-weight:bold; font-size:12px; text-align:center;">
+                    <td colspan="6" style="text-align: end">TOTAL</td>
+                    <td style="text-align: end">{{ $totals['room_qty'] }}</td>
+                    <td style="text-align: end">{{ number_format($totals['gross_price'], 2) }}</td>
+                    <td style="text-align: end">{{ number_format($totals['net_price'], 2) }}</td>
+                    <td style="text-align: end">{{ number_format($totals['due'], 2) }}</td>
+                    <td style="text-align: end">{{ number_format($totals['tip'], 2) }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
 @endsection
