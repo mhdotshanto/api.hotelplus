@@ -151,6 +151,7 @@ class SaleRoom extends Model
         return $this->hasMany(AccLedger::class, 'sale_room_id')
             ->where('type', 'sale');
     }
+
     public function getTotalPaidAttribute()
     {
         return $this->sale_ledgers_sum_credit

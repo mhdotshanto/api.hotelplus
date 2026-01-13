@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Models\AccLedger;
 use App\Models\SaleRoom;
 class SaleRoomObserver
 {
@@ -51,6 +52,18 @@ class SaleRoomObserver
         if ($saleRoom->wasChanged(['tip_per', 'tip_amount'])){
             $this->updateSaleRoomCategories($saleRoom);
             $this->updateSaleRoomAllocation($saleRoom);
+        }
+
+        if ($saleRoom->wasChanged('price_net')) {
+            $totalPaid = AccLedger::where('type', 'sale')
+                ->where('sale_room_id', $saleRoom->id)
+                ->sum('credit');
+
+            $totalDue = max(0, $saleRoom->price_net - $totalPaid);
+
+            $saleRoom->updateQuietly([
+                'total_due' => $totalDue,
+            ]);
         }
     }
 

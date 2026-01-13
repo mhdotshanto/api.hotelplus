@@ -2,11 +2,17 @@
 
 namespace App\Models;
 
+use App\Observers\AccLedgerObserver;
 use Illuminate\Database\Eloquent\Model;
 
 class AccLedger extends Model
 {
     protected $guarded = ['id'];
+
+    protected static function booted(): void
+    {
+        static::observe(AccLedgerObserver::class);
+    }
 
     public function head() {
         return $this->hasOne(AccHead::class, 'id', 'acc_head_id');

@@ -154,15 +154,10 @@ Route::get('guest-report-by-date', [ReportController::class, 'guestReportByDate'
 Route::get('money-receipt/{id}', [ReportController::class, 'printMoneyReceipt'])->name('money-receipt');
 
 //test route
-Route::get('test-sale-room-category-map', function () {
-    $saleTip = \App\Models\SaleTip::create([
-        "sale_room_id"  => 10221,
-        "name"          => "testing-tip",
-        "contact_no"    => "01711075844",
-        "note"          => "test tip note",
-        "amount"        => "500"
-    ]);
-    return response()->json($saleTip);
+Route::get('test-total-paid-due-ledger-calculation', function () {
+    return response()->json(
+        \App\Models\AccLedger::where('type', 'sale')
+            ->where('sale_room_id', 1)
+            ->sum('credit')
+    );
 });
-
-Route::get('payments-summery/{saleId}', [ \App\Http\Controllers\api\PaymentController::class, 'getPaymentSummary']);

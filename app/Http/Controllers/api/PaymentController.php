@@ -24,7 +24,6 @@ class PaymentController extends Controller
     }
 
     public function makeAPayment(Request $request, PaymentService $paymentService) {
-//dd($request->all());
         try {
             DB::beginTransaction();
             $validated = $request->validate([
@@ -44,10 +43,8 @@ class PaymentController extends Controller
 
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
 
-            //confirm reservation and associated ledger entries
             if(!$saleRecord->is_confirmed) $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRecord);
 
-            //insert reservation payment voucher entry
             $voucher = $paymentService->createVoucher(
                 voucherType: AccVoucherType::PAYMENT,
                 saleId: $saleRecord->id,
