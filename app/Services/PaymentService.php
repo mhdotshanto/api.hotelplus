@@ -339,7 +339,7 @@ class PaymentService
     }
 
     //adjust or discount cashbook entries
-    public function insertAdjustOrDiscountCashbookEntries(AccVoucher $voucher ){
+    public function insertAdjustOrDiscountCashbookEntries(AccVoucher $voucher){
         // cashbook entry (acc_type:acc_head)
         $this->insertCashbookEntry(
             accType: AccType::ACC_HEAD,
@@ -447,8 +447,6 @@ class PaymentService
         );
     }
 
-
-
     public function getPaymentSummary($saleId)
     {
         $totals = AccLedger::where('type', 'sale')
@@ -505,11 +503,11 @@ class PaymentService
     public function reservationTipLedgersEntry(AccVoucher $voucher)
     {
         //sale ledger entry (acc_type:sale)
-        $this->ledgerEntry(
-            ledgerType: LedgerType::SALE,
-            accType: AccType::SALE,
-            voucher: $voucher,
-        );
+//        $this->ledgerEntry(
+//            ledgerType: LedgerType::SALE,
+//            accType: AccType::SALE,
+//            voucher: $voucher,
+//        );
 
         //general ledger entry (acc_type:acc_head)
         $this->ledgerEntry(
@@ -517,6 +515,8 @@ class PaymentService
             accType: AccType::ACC_HEAD,
             voucher: $voucher,
         );
+
+        $isCash = true;
 
         //if payment method is bank then insert a bank ledger (acc_type:bank)
         if ($voucher->payment_method == 'bank') {
@@ -526,6 +526,7 @@ class PaymentService
                 voucher: $voucher,
                 entryType: 'credit'
             );
+            $isCash = false;
         }
 
         //if payment method is party then insert a party ledger (acc_type:party)
@@ -536,7 +537,24 @@ class PaymentService
                 voucher: $voucher,
                 entryType: 'credit'
             );
+            $isCash = false;
         }
+
+        if (!$isCash) {
+            $this->insertCashbookEntry(
+                accType: AccType::ACC_HEAD,
+                voucher: $voucher,
+                entryType: 'debit',
+                isCash: false
+            );
+        }
+
+        $this->insertCashbookEntry(
+            accType: AccType::ACC_HEAD,
+            voucher: $voucher,
+            entryType: 'credit',
+            isCash: $isCash
+        );
     }
 
     //insert reservation tip cashbook entry

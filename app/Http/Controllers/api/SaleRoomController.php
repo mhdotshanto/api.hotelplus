@@ -1479,7 +1479,6 @@ class SaleRoomController extends Controller
     public function reservationList(Request $request)
     {
         $query = SaleRoom::with('note');
-//        return response()->json($query->get());
         if($request->filled('status') && $request->status != 'all'){
             if ($request->status == 'checkin-missed') {
                 $query->whereIn('status', ['tentative', 'guaranteed'])
@@ -1498,7 +1497,7 @@ class SaleRoomController extends Controller
             }
         }
 
-        $query ->orderBy('id', 'desc');
+        $query->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
             $search = $request->input('search');

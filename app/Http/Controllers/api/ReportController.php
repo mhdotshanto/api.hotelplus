@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
-use App\Models\RoomName;
 use App\Models\RoomNumber;
 use Illuminate\Http\Request;
 use App\Models\SaleRoom;
@@ -18,13 +17,11 @@ use App\Exports\ArrivalGuestExport;
 use App\Exports\AllGuestExport;
 use App\Exports\GuestByDateExport;
 use App\Models\Guest;
-use App\Services\CRM\EmailServices as CRMEmailServices;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Services\EmailServices;
 use App\Traits\Formatter;
-use mysql_xdevapi\Exception;
 
 class ReportController extends Controller
 {
@@ -138,8 +135,6 @@ class ReportController extends Controller
                         $saleAgentQry->select('id', 'name', 'user_name');
                     },
                 ])
-                ->withSum('saleLedgers as total_debit', 'debit')
-                ->withSum('saleLedgers as total_credit', 'credit')
                 ->where('status', 'checkedout')
                 ->whereBetween('created_at', [
                     Carbon::parse($validated['date_from'])->startOfDay(),
@@ -160,6 +155,7 @@ class ReportController extends Controller
                     'price_net',
                     'tip_amount',
                     'date',
+                    'total_due'
                 );
 
             if (!empty($validated['references'])) $saleRoomQuery->whereIn('ref_id', $validated['references']);
@@ -241,8 +237,6 @@ class ReportController extends Controller
                         $saleAgentQry->select('id', 'name', 'user_name');
                     },
                 ])
-                ->withSum('saleLedgers as total_debit', 'debit')
-                ->withSum('saleLedgers as total_credit', 'credit')
                 ->where('status', 'checkedin')
                 ->whereBetween('created_at', [
                     Carbon::parse($validated['date_from'])->startOfDay(),
@@ -263,6 +257,7 @@ class ReportController extends Controller
                     'price_net',
                     'tip_amount',
                     'date',
+                    'total_due'
                 );
 
             if (!empty($validated['references'])) $saleRoomQuery->whereIn('ref_id', $validated['references']);

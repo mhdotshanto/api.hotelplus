@@ -20,10 +20,6 @@ use Illuminate\Support\Carbon;
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
-    protected $appends = [
-        'total_paid',
-        'total_due',
-    ];
 
     protected static function booted(): void
     {
@@ -150,16 +146,5 @@ class SaleRoom extends Model
     {
         return $this->hasMany(AccLedger::class, 'sale_room_id')
             ->where('type', 'sale');
-    }
-
-    public function getTotalPaidAttribute()
-    {
-        return $this->sale_ledgers_sum_credit
-            ?? $this->saleLedgers()->sum('credit');
-    }
-
-    public function getTotalDueAttribute()
-    {
-        return ($this->price_net ?? 0) - ($this->total_paid ?? 0);
     }
 }

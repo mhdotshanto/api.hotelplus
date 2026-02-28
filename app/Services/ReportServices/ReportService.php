@@ -33,7 +33,7 @@ class ReportService
         return AccHead::select('id')->where('slug', $slug)->first()->id;
     }
 
-    public function getPaymentSummary($saleId)
+    public function getPaymentSummary($saleId) // will be removed after completion
     {
         $total_bills = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
@@ -45,6 +45,7 @@ class ReportService
             })
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(debit)-SUM(credit) as total_bill_amount')
             ->first();
+
         $total_payments = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
             ->whereIn('voucher_id', function ($q) use ($saleId) {
@@ -55,8 +56,10 @@ class ReportService
             })
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_payment_amount')
             ->first();
+
         $totalTips = AccVoucher::where('sale_room_id', $saleId)
             ->where('type', 'tip')->selectRaw('SUM(amount) as total_tip_amount')->first();
+
         $total_adjustment = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
             ->whereIn('voucher_id', function ($q) use ($saleId) {

@@ -158,6 +158,7 @@ Route::get('test-total-paid-due-ledger-calculation', function () {
     return response()->json(
         \App\Models\AccLedger::where('type', 'sale')
             ->where('sale_room_id', 1)
-            ->sum('credit')
+            ->selectRaw('SUM(debit) as total_due, SUM(credit) as total_paid')
+            ->first()
     );
 });
