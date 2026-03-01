@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::controller(SaleRoomController::class)->group(function () {
+        Route::post('session', 'session');
         Route::post('room-temp-block', 'roomTempBlock');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
         Route::post('sale-room', 'saleRoom');

@@ -141,13 +141,46 @@ class SaleRoomController extends Controller
         }
     }
 
+    public function createSession($userId) {
+        $timestamp = Carbon::now()->valueOf();
+        $sessionId = (int) ($timestamp . $userId);
+        $room_temp = RoomTemp::create(['id' => $sessionId, 'user_id' => $userId]);
+        return $room_temp->id;
+    }
+
+    public function session(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) throw new UnauthorizedHttpException('', 'Unauthenticated');
+
+            $validated = $request->validate(['session_id' => ['nullable', 'numeric']]);
+            $sessionId = $validated['session_id'] ?? null;
+
+            if ($sessionId) {
+                $session = RoomTemp::where('id', $sessionId)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if ($session) return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
+            }
+
+            $newSessionId = $this->createSession($user->id);
+            return response()->json(['session_id' => $newSessionId, 'is_new' => true], 201);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Failed to create session',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function roomTempBlock(Request $request)
     {
         $authenticatedUser = auth()->user();
         if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
-
         $validated = $request->validate([
-            "temp_id" => ["nullable", "numeric"],
+            "session_id" => ["nullable", "numeric"],
             "rooms" => ["required", "array"],
             "rooms.*.room_number_id" => ["required"],
             "rooms.*.room_category_id" => ["required"],
@@ -156,25 +189,21 @@ class SaleRoomController extends Controller
             "rooms.*.rate" => ["required", "numeric"],
             "rooms.*.date" => ["required", "date"],
         ]);
+//        return response()->json($validated);
 
         DB::beginTransaction();
         try {
-            $room_temp = null;
-            if ($validated['temp_id']) {
-                $room_temp = RoomTemp::find($validated['temp_id']);
-                if (!$room_temp) abort(404, "Room temp not found");
-                $room_temp->touch();
-            } else {
-                $room_temp = RoomTemp::create(['user_id' => $authenticatedUser->id]);
-            }
-
+            $session = RoomTemp::where('id', $validated['session_id'])
+                ->where('user_id', $authenticatedUser->id)
+                ->first();
+            if (!$session) abort(404, "session not found");
 
             $temp_details = [];
             $now = now();
 
             foreach ($validated['rooms'] as $room) {
                 $temp_details[] = [
-                    'room_temp_id' => $room_temp->id,
+                    'room_temp_id' => $session->id,
                     'room_number_id' => $room['room_number_id'],
                     'room_category_id' => $room['room_category_id'],
                     'room_name_id' => $room['room_name_id'],
@@ -187,9 +216,8 @@ class SaleRoomController extends Controller
             }
 
             if (!empty($temp_details)) RoomTempDetail::insert($temp_details);
-
             DB::commit();
-            return response()->json(['room_temp' => $room_temp]);
+            return response()->json(['room_temp' => $session]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
