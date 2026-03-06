@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::controller(SaleRoomController::class)->group(function () {
+        Route::post('session', 'session');
         Route::post('room-temp-block', 'roomTempBlock');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
         Route::post('sale-room', 'saleRoom');
@@ -153,5 +154,12 @@ Route::get('all-guests', [ReportController::class, 'allGuestReport'])->name('all
 Route::get('guest-report-by-date', [ReportController::class, 'guestReportByDate'])->name('guest-report-by-date');
 Route::get('money-receipt/{id}', [ReportController::class, 'printMoneyReceipt'])->name('money-receipt');
 
-
-
+//test route
+Route::get('test-total-paid-due-ledger-calculation', function () {
+    return response()->json(
+        \App\Models\AccLedger::where('type', 'sale')
+            ->where('sale_room_id', 1)
+            ->selectRaw('SUM(debit) as total_due, SUM(credit) as total_paid')
+            ->first()
+    );
+});

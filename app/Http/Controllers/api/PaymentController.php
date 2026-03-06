@@ -24,7 +24,6 @@ class PaymentController extends Controller
     }
 
     public function makeAPayment(Request $request, PaymentService $paymentService) {
-//dd($request->all());
         try {
             DB::beginTransaction();
             $validated = $request->validate([
@@ -44,10 +43,8 @@ class PaymentController extends Controller
 
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
 
-            //confirm reservation and associated ledger entries
             if(!$saleRecord->is_confirmed) $paymentService->confirmReservationAndAssociatedLedgerEntries($saleRecord);
 
-            //insert reservation payment voucher entry
             $voucher = $paymentService->createVoucher(
                 voucherType: AccVoucherType::PAYMENT,
                 saleId: $saleRecord->id,
@@ -129,7 +126,6 @@ class PaymentController extends Controller
     }
 
      public function tip(Request $request, PaymentService $paymentService) {
-        // dd(AccVoucherType::TIP,$request->all());
         try {
             DB::beginTransaction();
             $validated = $request->validate([
@@ -144,21 +140,17 @@ class PaymentController extends Controller
                 'name'              => 'required|string',
                 'contact_no'        => 'required|string',
             ]);
+
             if (in_array($validated['payment_method'], ['card', 'bank', 'bkash', 'nagad', 'rocket'])) $validated['payment_method'] = 'bank';
             $saleRecord = SaleRoom::where('id', $validated['sale_id'])->firstOrFail();
-            // dd('sale room data..', $saleRecord);
-            $saleCategoryRecords = SaleRoomCategory::where('sale_id', $validated['sale_id'])->get();
-            $totalCategoryRateSale = $saleCategoryRecords->sum('rate_sale');
-            $totalTip = $validated['amount'];
-            //dd('total tip..',$totalTip);
-            $totalTipPer = $this->fixDecimal(($totalTip * 100) / $totalCategoryRateSale);
-            $updatedCategoryWithTipCalculation = collect($saleCategoryRecords)->map(function($item) use ($totalTipPer) {
-                $item['tip_per'] = $this->fixDecimal($totalTipPer);
-                $item['tip_amount'] = $this->fixDecimal(($item->rate_sale * $totalTipPer)/100);
-                $item['rate_net'] = $this->fixDecimal($item['rate_sale'] - ($item['adjustment_amount'] + $item['tip_amount']));
-                $item->save();
-                return $item;
-            });
+
+            SaleTip::create([
+                "sale_room_id"  => $saleRecord->id,
+                "name"          => $validated['name'],
+                "contact_no"    => $validated['contact_no'],
+                "note"          => $validated['notes'],
+                "amount"        => $validated['amount']
+            ]);
 
             $voucher = $paymentService->createVoucher(
                 voucherType: AccVoucherType::TIP,
@@ -171,16 +163,8 @@ class PaymentController extends Controller
                 referenceNumber: $validated['reference_number']??null,
                 paymentMethod: $validated['payment_method']
             );
-            if($voucher){
-                $saleTip = SaleTip::create([
-                    "sale_room_id" =>$saleRecord->id,
-                    "name" =>$validated['name'],
-                    "contact_no" =>$validated['contact_no'],
-                    "note" =>$validated['notes'],
-                ]);
-                $saleRecord->tip_amount  = $voucher->amount;
-                $saleRecord->save();
-            }
+
+            $paymentService->adjustLedgersForSaleTip($voucher);
 
             DB::commit();
             return response()->json([
@@ -238,7 +222,7 @@ class PaymentController extends Controller
              return response()->json([
                  'message' => 'processed successfully.',
              ], 200);
-         } catch (\Throwable $e) {
+             } catch (\Throwable $e) {
              DB::rollBack();
              return response()->json([
                  'message' => $e->getMessage(),

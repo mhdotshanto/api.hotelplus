@@ -2,11 +2,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{$data['title']}}</title>
+    <title>{{$title}}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="{{ asset('reports/css/bootstrap/bootstrap.min.css') }}" type="text/css" rel="stylesheet" >  
-    <link href="{{ asset('reports/css/style.css') }}" type="text/css" rel="stylesheet" > 
-        
+    <link href="{{ asset('reports/css/bootstrap/bootstrap.min.css') }}" type="text/css" rel="stylesheet" >
+    <link href="{{ asset('reports/css/style.css') }}" type="text/css" rel="stylesheet" >
+
   </head>
 
 {{-- <table width="100%">

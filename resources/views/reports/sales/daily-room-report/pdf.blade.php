@@ -1,135 +1,174 @@
 @extends('reports.layouts.pdf.main')
+
 @section('content')
-<div class="fo-12 top-5">
-    <p class="text-center p-0 m-0 fo-12" style="font-size:22px">DAILY ROOM REPORT</p>
-   <p class="text-center p-0 m-0 fo-12" style="font-size:18px"><strong>DATE:</strong> {{ $data['date'] }}</p>
-   
-    <div class="mt-3">
-        <table class="table border no-column-border">
-        <tbody>
-            <tr class="daily-room-header">
-                <th>ROOM#</th>
-                <th>CATEGORY</th>
-                <th>RESV & STATUS</th>                
-                <th colspan="2" style="text-align:center;">GUEST INFO</th>
-                <th>REFERENCE</th>
-                <th>CREATED BY</th>
-                <th>PERIOD</th>
-                <th colspan="3" style="text-align:center;">PRICE</th>
-                <th>TIP NOTE</th>
-            </tr>
-            <tr class="daily-room-header">
-            <th>&nbsp;</th>
-            <th>&nbsp;</th>
-            <th>&nbsp;</th>
-            <th>NAME & CONTACT</th>
-            <th>ADDRESS</th>
-            <th>&nbsp;</th>
-            <th>&nbsp;</th>
-            <th>&nbsp;</th>
-            <th>ROOM RENT</th>
-            <th>COMISSION</th>
-            <th>NET RENT</th>
-            <th></th>
-        </tr>
-            @foreach ($data['roomData'] as $item)
-            @if($item['status'] ==='guaranteed' || $item['status'] ==='checkedin' || $item['status'] ==='checkedout')
-                <tr class="sold-room" style="background-color: #d5d8dc;" >
-                    <td width="" style="text-align:left">{{$item['room_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['room_category_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['code']}} {{$item['status']}}</td>                    
-                    <td width="" style="text-align:left">{{$item['guest_name']}} {{$item['guest_mobile']}}</td>
-                    <td width="" style="text-align:left">{{$item['guest_address']}}</td>
-                    <td width="" style="text-align:left">{{$item['reference_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['created_by_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['period']}} </td>
-                    <td width="" style="text-align:right">{{bdt_format($item['room_rent'])}}</td>
-                    <td width="" style="text-align:right">{{bdt_format($item['commision'])}}</td>
-                    <td width="" style="text-align:right">{{bdt_format($item['price_net'])}}</td>
-                    <td></td>      
-                </tr> 
-            @elseif($item['status'] ==='tentative' || $item['status'] ==='postponed')
-            <tr class="ledger-details" >
-                    <td width="" style="text-align:left">{{$item['room_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['room_category_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['code']}} {{$item['status']}}</td>                    
-                    <td width="" style="text-align:left">{{$item['guest_name']}} {{$item['guest_mobile']}}</td>
-                    <td width="" style="text-align:left">{{$item['guest_address']}}</td>
-                    <td width="" style="text-align:left">{{$item['reference_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['created_by_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['period']}} </td>
-                    <td width="" style="text-align:right">{{bdt_format($item['room_rent'])}}</td>
-                    <td width="" style="text-align:right">{{bdt_format($item['commision'])}}</td>
-                    <td width="" style="text-align:right">{{bdt_format($item['price_net'])}}</td>
-                    <td></td>      
-                </tr> 
-             @else
-                <tr class="ledger-details">
-                    <td width="" style="text-align:left">{{$item['room_name']}}</td>
-                    <td width="" style="text-align:left">{{$item['room_category_name']}}</td>
-                    <td width="" colspan="10" style="text-align:center">---Not Sold---</td>  
-                </tr> 
-            @endif               
-            @endforeach                   
-        </tbody>
-    </table>
-    </div> 
-    <table width="100%" style="font-weight:bold; font-size:20px; border-collapse:collapse;">
-  <tr>
-    <td align="right">
-      <!-- Left Summary Table -->
-      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; font-size:18px;">
-        <tbody>
-          <tr>
-            <td width="50%">Total Sold Room</td>
-            <td width="20%">:</td>
-            <td width="30%" align="right">{{ $data['summary']['total_sold_room'] }}</td>
-          </tr>
-          <tr>
-            <td>Total Sale</td><td>:</td>
-            <td align="right">{{ $data['summary']['total_sale'] }}</td>
-          </tr>
-          <tr>
-            <td>Total Commission</td><td>:</td>
-            <td align="right">{{ $data['summary']['total_commision'] }}</td>
-          </tr>
-          <tr>
-            <td>Total Net Sale</td><td>:</td>
-            <td align="right">{{ $data['summary']['total_net_sale'] }}</td>
-          </tr>
-          <tr style="border-top:2px solid black;">
-            <td>Total Income</td><td>:</td>
-            <td align="right">{{ $data['summary']['total_income'] }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </td>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
 
-    <td align="right" style="padding-left:20px;">
-      <!-- Right Summary Table -->
-      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; font-size:18px;">
-        <tbody>
-          <tr>
-            <td width="50%">Cash in Hand</td><td width="20%">:</td>
-            <td width="30%" align="right">0.00</td>
-          </tr>
-          <tr>
-            <td>Cash in Bank</td><td>:</td>
-            <td align="right">0.00</td>
-          </tr>
-          <tr>
-            <td>Cash in Bkash</td><td>:</td>
-            <td align="right">0.00</td>
-          </tr>
-          <tr style="border-top:2px solid black;">
-            <td>Total Balance</td><td>:</td>
-            <td align="right">0.00</td>
-          </tr>
-        </tbody>
-      </table>
-    </td>
-  </tr>
-</table>
+        th, td {
+            /*border: 1px solid #d3d3d3; !* light gray border *!*/
+            padding: 4px;
+            font-size: 12px;
+            vertical-align: middle;
+        }
 
-</div>
+        th {
+            background-color: #f0f0f0; /* light gray header */
+            font-weight: bold;
+            text-align: center;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #fafafa; /* light zebra */
+        }
+
+        .extra-bed-row {
+            background-color: #fff3cd; /* yellow for extra bed rows */
+            font-style: italic;
+        }
+    </style>
+
+    <div class="fo-12 top-5">
+        <div class="mt-3">
+            <table>
+                <thead>
+                {{-- Header --}}
+                <tr>
+                    <th rowspan="2">SL#</th>
+                    <th rowspan="2">ROOM#</th>
+                    <th rowspan="2">CATEGORY</th>
+                    <th rowspan="2">RESV & STATUS</th>
+                    <th colspan="3">GUEST INFO</th>
+                    <th rowspan="2">REFERENCE</th>
+                    <th rowspan="2">CREATED BY</th>
+                    <th rowspan="2">PERIOD</th>
+                    <th colspan="3">PRICE</th>
+                    <th rowspan="2">TIP NOTE</th>
+                </tr>
+                <tr>
+                    <th>NAME</th>
+                    <th>CONTACT</th>
+                    <th>ADDRESS</th>
+                    <th>ROOM RENT</th>
+                    <th>COMMISSION</th>
+                    <th>NET RENT</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{-- Data rows --}}
+                @foreach ($data['rooms'] as $room)
+                    @php
+                        $allocation = $room->room_sale_allocation[0] ?? null;
+                        $extraBed = $room->room_sale_allocation[1] ?? null;
+                        $saleRoom = $allocation?->saleRoom;
+                        $saleTip = $saleRoom->sale_tip[0] ?? null;
+
+                        $rowClass = '';
+                        if($saleRoom?->status === 'checkedin') $rowClass = 'status-checkedin';
+                        elseif($saleRoom?->status === 'checkedout') $rowClass = 'status-checkedout';
+                    @endphp
+
+                    {{-- Main room row --}}
+                    <tr class="{{ $rowClass }} border">
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $loop->iteration }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $room->name }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $room->roomName?->category?->name ?? '-' }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">
+                            {{ $saleRoom?->code ?? '-' }}<br>{{ $saleRoom?->status ?? '-' }}
+                        </td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">
+                            {{ $saleRoom?->guest_name_title ?? '-' }} {{ $saleRoom?->guest_name_first ?? '' }} {{ $saleRoom?->guest_name_last ?? '' }}
+                        </td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $saleRoom?->guest_mobile ?? '-' }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $saleRoom?->guest_address ?? '-' }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">
+                            @if($saleRoom?->sale_agent)
+                                [{{ $saleRoom->sale_agent->user_name }}]<br>{{ $saleRoom->sale_agent->name }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>{{ $saleRoom?->sale_user?->name ?? '-' }}</td>
+                        <td>
+                            @if($saleRoom)
+                                {{ \Carbon\Carbon::parse($saleRoom->date_checkin)->format('d/m/Y') }}<br>
+                                to<br>
+                                {{ \Carbon\Carbon::parse($saleRoom->date_checkout)->format('d/m/Y') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>{{ $allocation?->rate_sale ?? '-' }}</td>
+                        <td>{{ $allocation?->tip_amount ?? '-' }}</td>
+                        <td>{{ $allocation?->rate_net ?? '-' }}</td>
+                        <td rowspan="{{ $extraBed ? '2' : '1' }}">{{ $saleTip->note ?? '-' }}</td>
+                    </tr>
+
+                    {{-- Extra Bed row --}}
+                    @if($extraBed)
+                        <tr class="extra-bed-row">
+                            <td colspan="2" style="text-align:right; font-size: 16px; font-weight: bold">Extra Bed:</td>
+                            <td>{{ $extraBed->rate_sale ?? '-' }}</td>
+                            <td>{{ $extraBed->tip_amount ?? '-' }}</td>
+                            <td>{{ $extraBed->rate_net ?? '-' }}</td>
+                        </tr>
+                    @endif
+                @endforeach
+                <tr>
+                    <td colspan="16"></td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Sold Room</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ $data['summary']['total_sold_room'] }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Not Sold Room</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ $data['summary']['total_not_sold_room'] }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Sale</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ number_format($data['summary']['total_sale'], 2) }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Commission</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ number_format($data['summary']['total_commision'], 2) }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Net Sale</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ number_format($data['summary']['total_net_sale'], 2) }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="10"></td>
+                    <th colspan="3" style="text-align:left;">Total Income</th>
+                    <td colspan="2" style="text-align:right;">
+                        {{ number_format($data['summary']['total_income'], 2) }}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 @endsection

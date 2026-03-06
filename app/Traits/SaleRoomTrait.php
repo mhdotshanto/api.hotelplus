@@ -123,18 +123,48 @@ trait SaleRoomTrait
         ];
     }
 
-    public function createSaleRoomAllocations ($tempDetails, $saleId)
-    {
+    public function createSaleRoomAllocations (
+        $tempDetails,
+        $saleId,
+    ){
         foreach ($tempDetails as $room) {
+            $roomKey = "{$room->date}|{$room->room_category_id}|{$room->bed}|0";
+            $roomRateSale = $this->getCurrentSaleRateFromSaleRoomCategory($saleId, $roomKey);
+
             SaleRoomAllocation::create([
-                'room_sale_id' => $saleId,
-                'room_number_id' => $room->room_number_id,
-                'room_category_id' => $room->room_category_id,
-                'room_name_id' => $room->room_name_id,
-                'bed' => $room->bed,
-                'date' => $room->date,
-                'is_xb' => $room->has_xb,
+                'room_sale_id'          => $saleId,
+                'room_number_id'        => $room->room_number_id,
+                'room_category_id'      => $room->room_category_id,
+                'room_name_id'          => $room->room_name_id,
+                'bed'                   => $room->bed,
+                'date'                  => $room->date,
+                'is_xb'                 => 0,
+                'rate_sale'             => $this->fixDecimal($roomRateSale),
+                'tip_amount'            => 0.00, //later updated when tip per updated on sale room parent record
+                'rate_net'              => $this->fixDecimal($roomRateSale),
             ]);
+
+            if ($room->has_xb) {
+                $xbKey = "{$room->date}|{$room->room_category_id}|{$room->bed}|1";
+
+                $xbRateSale = $this->getCurrentSaleRateFromSaleRoomCategory(
+                    $saleId,
+                    $xbKey
+                );
+
+                SaleRoomAllocation::create([
+                    'room_sale_id'          => $saleId,
+                    'room_number_id'        => $room->room_number_id,
+                    'room_category_id'      => $room->room_category_id,
+                    'room_name_id'          => $room->room_name_id,
+                    'bed'                   => $room->bed,
+                    'date'                  => $room->date,
+                    'is_xb'                 => 1,
+                    'rate_sale'             => $this->fixDecimal($xbRateSale),
+                    'tip_amount'            => 0.00, //later updated when tip per updated on sale room parent record
+                    'rate_net'              => $this->fixDecimal($xbRateSale),
+                ]);
+            }
         }
     }
 
@@ -144,21 +174,37 @@ trait SaleRoomTrait
         $discountType,
         $discountPer,
         $saleId,
-        $tempDetailsCollection
+        $tempDetailsCollection,
+        $customRates = []
     ){
+        $isCustomRate = $discountType === 'customize-rate';
         $insertable = [];
-        foreach ($groupedData as $key => $item) {
-            $item = $item[0];
-            [$category, $date, $bed] = explode(' | ', $key);
-            $currentCategory = $byCategoryDiscount[$category." ".$bed];
-            $qty = $tempDetailsCollection->where('category.name', $category)->where('bed', $bed)->where('date', $date)->sum('qty');
-            $discountPerItem = 0.0;
-            $discountAmountItem = 0.0;
-            $rateSale = 0;
+        foreach ($groupedData as $key => $group) {
+            $item = $group[0];
+            [$categoryName, $date, $bed] = explode(' | ', $key);
 
-            $grossRate = $this->applyVatAndServiceCharge($item['roomName']['rate'])->gross;
-
+            $categoryBedKey = $categoryName." ".$bed;
             $rateKey = round($item['roomName']['rate']) . '_' . round($item['roomName']['rate_xb']);
+
+            $currentCategory = $byCategoryDiscount[$categoryBedKey];
+
+            $qty = $tempDetailsCollection
+                    ->where('category.name', $categoryName)
+                    ->where('bed', $bed)
+                    ->where('date', $date)
+                    ->sum('qty');
+
+            $xbQty = $tempDetailsCollection
+                ->where('category.name', $categoryName)
+                ->where('bed', $bed)
+                ->where('date', $date)
+                ->where('has_xb', 1)
+                ->sum('qty');
+
+            $roomRate = $isCustomRate ? $customRates[$categoryBedKey][$rateKey]['roomRate'] : $item['rate'];
+            $xbRate   = $isCustomRate ? $customRates[$categoryBedKey][$rateKey]['xbRate']   : $item['rate_xb'];
+
+            $grossRate = $this->applyVatAndServiceCharge($roomRate)->gross;
 
             if ($discountType === 'by-invoice') {
                 $discountPerItem = $discountPer;
@@ -168,6 +214,10 @@ trait SaleRoomTrait
                 $discountPerItem = $currentCategory[$rateKey]['room']['percentage'];
                 $discountAmountItem = $grossRate * ($discountPerItem / 100);
                 $rateSale = $grossRate - $discountAmountItem;
+            } elseif ($discountType === 'customize-rate')   {
+                $rateSale = $grossRate;
+                $discountAmountItem = 0.00;
+                $discountPerItem = 0.00;
             } else {
                 $rateSale = $grossRate;
                 $discountAmountItem = 0.00;
@@ -181,35 +231,50 @@ trait SaleRoomTrait
                 'bed'               => $item['roomName']['bed'],
                 'qty'               => $qty,
                 'is_xb'             => 0,
-                'rate'              => $item['roomName']['rate'],
+                'rate'              => $roomRate,
                 'gross_rate'        => $grossRate,
                 'discount_per'      => $this->fixDecimal($discountPerItem),
                 'discount_amount'   => $this->fixDecimal($discountAmountItem),
                 'rate_sale'         => $this->fixDecimal($rateSale),
+                'rate_net'         => $this->fixDecimal($rateSale),
             ];
 
-            if ($item['has_xb']) {
-                $grossXbRate = $this->applyVatAndServiceCharge($item['roomName']['rate_xb'])->gross;
-                if ($discountType === 'by-category') {
-                    $discountPerItem = $currentCategory[$rateKey]['xb']['percentage'];
+            if ($xbQty > 0) {
+                $grossXbRate = $this->applyVatAndServiceCharge($xbRate)->gross;
+                if ($discountType === 'by-invoice') {
+                    $discountPerItem = $discountPer;
                     $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
                     $rateSale = $grossXbRate - $discountAmountItem;
+                } elseif ($discountType === 'by-category') {
+                    $discountPerItem = $currentCategory[$rateKey]['room']['percentage'];
+                    $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
+                    $rateSale = $grossXbRate - $discountAmountItem;
+                } elseif ($discountType === 'customize-rate')   {
+                    $rateSale = $grossXbRate;
+                    $discountAmountItem = 0.00;
+                    $discountPerItem = 0.00;
+                } else {
+                    $rateSale = $grossXbRate;
+                    $discountAmountItem = 0.00;
+                    $discountPerItem = 0.00;
                 }
                 $insertable[] = [
                     'sale_id'           => $saleId,
                     'date'              => $date,
                     'category_id'       => $item['room_category_id'],
                     'bed'               => $item['roomName']['bed'],
-                    'qty'               => $qty,
+                    'qty'               => $xbQty,
                     'is_xb'             => 1,
-                    'rate'              => $item['roomName']['rate_xb'],
+                    'rate'              => $xbRate,
                     'gross_rate'        => $grossXbRate,
                     'discount_per'      => $this->fixDecimal($discountPerItem),
                     'discount_amount'   => $this->fixDecimal($discountAmountItem),
                     'rate_sale'         => $this->fixDecimal($rateSale),
+                    'rate_net'         => $this->fixDecimal($rateSale),
                 ];
             }
         }
+//        return $insertable;
         SaleRoomCategory::insert($insertable);
     }
 
@@ -256,10 +321,35 @@ trait SaleRoomTrait
 
     public function customRateTotal($customRates)
     {
-        return collect($customRates)->sum(function ($rate) {
-            return ($rate['roomRate'] * $rate['room_qty']) + ($rate['xbRate'] * $rate['xb_qty']);
-        });
+        return collect($customRates)
+            ->flatMap(fn ($categoryRates) => $categoryRates)
+            ->sum(function ($rate) {
+                return ($rate['roomRate'] * $rate['room_qty']) + ($rate['xbRate'] * $rate['xb_qty']);
+            });
     }
 
+    public function getCurrentSaleRateFromSaleRoomCategory(
+        int $saleId,
+        string $key
+    ) {
+        static $rateSaleCache = [];
 
+        if (!isset($rateSaleCache[$saleId])) {
+            $rateSaleCache[$saleId] = SaleRoomCategory::where('sale_id', $saleId)
+                ->get()
+                ->mapWithKeys(function ($cat) {
+                    $mapKey = "{$cat->date}|{$cat->category_id}|{$cat->bed}|{$cat->is_xb}";
+                    return [$mapKey => (float) $cat->rate_sale];
+                })
+                ->toArray();
+        }
+
+        if (!isset($rateSaleCache[$saleId][$key])) {
+            throw new \RuntimeException(
+                "SaleRoomCategory rate_sale not found for sale_id={$saleId}, key={$key}"
+            );
+        }
+
+        return $rateSaleCache[$saleId][$key];
+    }
 }
