@@ -193,9 +193,7 @@ class SaleRoomController extends Controller
 
         DB::beginTransaction();
         try {
-            $session = RoomTemp::where('id', $validated['session_id'])
-                ->where('user_id', $authenticatedUser->id)
-                ->first();
+            $session = RoomTemp::where('id', $validated['session_id'])->where('user_id', $authenticatedUser->id)->first();
             if (!$session) abort(404, "session not found");
 
             $temp_details = [];
@@ -216,6 +214,7 @@ class SaleRoomController extends Controller
             }
 
             if (!empty($temp_details)) RoomTempDetail::insert($temp_details);
+            $session->touch();
             DB::commit();
             return response()->json(['room_temp' => $session]);
         } catch (\Exception $e) {
