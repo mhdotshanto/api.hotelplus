@@ -488,7 +488,7 @@ class ReportController extends Controller
             //$name = "Inhouse Guest Report";
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.guest.inhouse.html')->with(['data' => $data]);
+                    return view('reports.guest.inhouse.html')->with(['data' => $data, 'title' => $data['title'] ?? '', 'routes' => $data['routes'] ?? []]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
@@ -548,7 +548,7 @@ class ReportController extends Controller
         try {
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.guest.arrival.html')->with(['data' => $data]);
+                    return view('reports.guest.arrival.html')->with(['data' => $data, 'title' => $data['title'] ?? '', 'routes' => $data['routes'] ?? []]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
@@ -625,7 +625,7 @@ class ReportController extends Controller
         try {
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.guest.byDate.html')->with(['data' => $data]);
+                    return view('reports.guest.byDate.html')->with(['data' => $data, 'title' => $data['title'] ?? '', 'routes' => $data['routes'] ?? []]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
@@ -683,7 +683,7 @@ class ReportController extends Controller
         try {
             if ($output === 'html') {
                 if ($data) {
-                    return view('reports.guest.all.html')->with(['data' => $data]);
+                    return view('reports.guest.all.html')->with(['data' => $data, 'title' => $data['title'] ?? '', 'routes' => $data['routes'] ?? []]);
                 }
             } elseif ($output === "excel") {
                 if ($data) {
