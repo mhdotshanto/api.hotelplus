@@ -103,6 +103,7 @@ return [
 }
 public function mpdf($name,$config = ''){
 ini_set("pcre.backtrack_limit", "50000000");
+ini_set('memory_limit', '512M');
 if($config == 'dot') {
 
 $config = self::mpdfconfig_dot();
