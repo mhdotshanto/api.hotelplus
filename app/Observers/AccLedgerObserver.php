@@ -23,13 +23,16 @@ class AccLedgerObserver
 
         $saleLedger = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $sale->id)
-            ->selectRaw('SUM(debit) as total_due, SUM(credit) as total_paid')
+            ->selectRaw('SUM(debit) as total_bill, SUM(credit) as total_paid')
             ->first();
 
-//        $totalDue = max(0, $sale->price_net - $totalPaid);
+        $totalBill = $saleLedger->total_bill ?? 0;
+        $totalPaid = $saleLedger->total_paid ?? 0;
+        $totalDue  = max(0, $totalBill - $totalPaid);
+
         $sale->update([
-            'total_due'  => $saleLedger->total_due,
-            'total_paid' => $saleLedger->total_paid
+            'total_due'  => $totalDue,
+            'total_paid' => $totalPaid
         ]);
     }
 
