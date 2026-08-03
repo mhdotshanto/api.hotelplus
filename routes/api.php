@@ -18,7 +18,7 @@ use App\Http\Controllers\api\ConfigController;
 use App\Http\Controllers\api\ReportController;
 
 Route::get('test-api', function () {
-    return response()->json(config('database.default'));
+    return response()->json("working......");
 });
 
 Route::post('/register', [AuthController::class, 'register']);
