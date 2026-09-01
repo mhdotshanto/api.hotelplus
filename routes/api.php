@@ -122,8 +122,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::controller(\App\Http\Controllers\api\RoomTempController::class)->group(function (){
         Route::get('current-users-temp-list', 'getCurrentUsersTempList');
-        Route::post('extend/{roomTemp}', 'extend');
-        Route::delete('destroy/{roomTemp}', 'destroy');
+        Route::post('extend/{id}', 'extend');
+        Route::delete('destroy/{id}', 'destroy');
         Route::delete('destroy-all-sessions', 'destroyAll');
     });
 

@@ -60,8 +60,13 @@ class RoomTempController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(RoomTemp $roomTemp)
+    public function destroy(Request $request, $id)
     {
+        $authenticatedUser = auth()->user();
+        $roomTemp = RoomTemp::where('id', $id)
+            ->where('user_id', $authenticatedUser->id)
+            ->firstOrFail();
+
         DB::beginTransaction();
         try {
             if (count($roomTemp->details)) {
@@ -87,13 +92,20 @@ class RoomTempController extends Controller
     }
 
     /**
-     *  extend the room temp time by updating the updated_at date field
+     * Extend the room temp time by updating the updated_at date field
      */
-
-    public function extend(RoomTemp $roomTemp)
+    public function extend(Request $request, $id)
     {
+        $authenticatedUser = auth()->user();
+        $roomTemp = RoomTemp::where('id', $id)
+            ->where('user_id', $authenticatedUser->id)
+            ->firstOrFail();
+
         $roomTemp->touch();
-        return response()->json(['message' => 'RoomTemp time extended successfully.',], 200);
+        return response()->json([
+            'message' => 'RoomTemp time extended successfully.',
+            'session' => $roomTemp
+        ], 200);
     }
 
     /**
