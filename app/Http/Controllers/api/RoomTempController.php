@@ -99,11 +99,45 @@ class RoomTempController extends Controller
     /**
      * get current users tempt list
      */
-
     public function getCurrentUsersTempList(Request $request) {
         $authenticatedUser = auth()->user();
-        $tempList = RoomTemp::where('user_id', $authenticatedUser->id)->get();
+        $tempList = RoomTemp::with([
+            'details.room',
+            'details.category',
+            'details.roomName'
+        ])
+        ->where('user_id', $authenticatedUser->id)
+        ->orderBy('updated_at', 'desc')
+        ->get();
         return response()->json($tempList);
+    }
+
+    /**
+     * Delete all room temp sessions for the authenticated user
+     */
+    public function destroyAll(Request $request)
+    {
+        $authenticatedUser = auth()->user();
+        DB::beginTransaction();
+        try {
+            $sessions = RoomTemp::where('user_id', $authenticatedUser->id)->get();
+            foreach ($sessions as $session) {
+                if (count($session->details)) {
+                    $session->details()->delete();
+                }
+                $session->delete();
+            }
+            DB::commit();
+            return response()->json([
+                'message' => 'All sessions deleted successfully.'
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to delete all sessions.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
 

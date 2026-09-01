@@ -124,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('current-users-temp-list', 'getCurrentUsersTempList');
         Route::post('extend/{roomTemp}', 'extend');
         Route::delete('destroy/{roomTemp}', 'destroy');
+        Route::delete('destroy-all-sessions', 'destroyAll');
     });
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);
