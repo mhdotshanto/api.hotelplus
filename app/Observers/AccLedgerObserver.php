@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\AccLedger;
+use App\Models\AccVoucher;
 use App\Models\SaleRoom;
 
 class AccLedgerObserver
@@ -11,29 +12,40 @@ class AccLedgerObserver
         return round($number, $decimal_places, $round_type);
     }
 
+    public function syncSaleRoomTotals(?int $saleRoomId): void
+    {
+        if (!$saleRoomId) return;
+        $sale = SaleRoom::find($saleRoomId);
+        if (!$sale) return;
+
+        $payments = (float) (AccVoucher::where('sale_room_id', $sale->id)
+            ->where('type', 'payment')
+            ->sum('amount') ?? 0);
+
+        $refunds = (float) (AccVoucher::where('sale_room_id', $sale->id)
+            ->where('type', 'refund')
+            ->sum('amount') ?? 0);
+
+        $adjustments = (float) (AccVoucher::where('sale_room_id', $sale->id)
+            ->whereIn('type', ['adjustment', 'discount'])
+            ->sum('amount') ?? 0);
+
+        $netPaid = max(0, $payments - $refunds);
+        $totalDue = max(0, (float) $sale->price_net + $refunds - $payments - $adjustments);
+
+        $sale->updateQuietly([
+            'total_due'  => $totalDue,
+            'total_paid' => $netPaid
+        ]);
+    }
+
     /**
      * Handle the AccLedger "created" event.
      */
     public function created(AccLedger $accLedger): void
     {
         if($accLedger->type !== 'sale') return;
-
-        $sale = SaleRoom::find($accLedger->sale_room_id);
-        if (!$sale) return;
-
-        $saleLedger = AccLedger::where('type', 'sale')
-            ->where('sale_room_id', $sale->id)
-            ->selectRaw('SUM(debit) as total_bill, SUM(credit) as total_paid')
-            ->first();
-
-        $totalBill = $saleLedger->total_bill ?? 0;
-        $totalPaid = $saleLedger->total_paid ?? 0;
-        $totalDue  = max(0, $totalBill - $totalPaid);
-
-        $sale->update([
-            'total_due'  => $totalDue,
-            'total_paid' => $totalPaid
-        ]);
+        $this->syncSaleRoomTotals($accLedger->sale_room_id);
     }
 
     /**
@@ -41,7 +53,8 @@ class AccLedgerObserver
      */
     public function updated(AccLedger $accLedger): void
     {
-        //
+        if($accLedger->type !== 'sale') return;
+        $this->syncSaleRoomTotals($accLedger->sale_room_id);
     }
 
     /**
@@ -49,7 +62,8 @@ class AccLedgerObserver
      */
     public function deleted(AccLedger $accLedger): void
     {
-        //
+        if($accLedger->type !== 'sale') return;
+        $this->syncSaleRoomTotals($accLedger->sale_room_id);
     }
 
     /**
@@ -57,7 +71,8 @@ class AccLedgerObserver
      */
     public function restored(AccLedger $accLedger): void
     {
-        //
+        if($accLedger->type !== 'sale') return;
+        $this->syncSaleRoomTotals($accLedger->sale_room_id);
     }
 
     /**
@@ -65,6 +80,7 @@ class AccLedgerObserver
      */
     public function forceDeleted(AccLedger $accLedger): void
     {
-        //
+        if($accLedger->type !== 'sale') return;
+        $this->syncSaleRoomTotals($accLedger->sale_room_id);
     }
 }

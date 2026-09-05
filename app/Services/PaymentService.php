@@ -449,13 +449,27 @@ class PaymentService
 
     public function getPaymentSummary($saleId)
     {
-        $totals = AccLedger::where('type', 'sale')
-            ->where('sale_room_id', $saleId)
-            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
-            ->first();
+        $sale = SaleRoom::find($saleId);
+        $netPrice = $sale ? (float) $sale->price_net : 0;
+
+        $payments = (float) (AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'payment')
+            ->sum('amount') ?? 0);
+
+        $refunds = (float) (AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'refund')
+            ->sum('amount') ?? 0);
+
+        $adjustments = (float) (AccVoucher::where('sale_room_id', $saleId)
+            ->whereIn('type', ['adjustment', 'discount'])
+            ->sum('amount') ?? 0);
+
+        $netPaid = max(0, $payments - $refunds);
+        $totalDue = max(0, $netPrice + $refunds - $payments - $adjustments);
+
         return response()->json([
-            "total_paid" => (float) $totals->total_credit ?? 0,
-            "total_due"  => (float) ($totals->total_debit ?? 0) - $totals->total_credit,
+            "total_paid" => $netPaid,
+            "total_due"  => $totalDue,
         ]);
     }
 

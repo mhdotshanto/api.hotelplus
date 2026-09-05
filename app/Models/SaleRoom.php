@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
-    protected $appends = ['total_refund'];
+    protected $appends = ['total_refund', 'total_paid', 'total_due'];
 
     protected static function booted(): void
     {
@@ -151,7 +151,7 @@ class SaleRoom extends Model
 
     public function getTotalRefundAttribute()
     {
-        if (array_key_exists('total_refund', $this->attributes)) {
+        if (array_key_exists('total_refund', $this->attributes) && !is_null($this->attributes['total_refund'])) {
             return (float) $this->attributes['total_refund'];
         }
 
@@ -160,5 +160,33 @@ class SaleRoom extends Model
         }
 
         return (float) ($this->saleVouchers()->where('type', 'refund')->sum('amount') ?? 0);
+    }
+
+    public function getTotalPaidAttribute()
+    {
+        if ($this->relationLoaded('saleVouchers')) {
+            $payments = (float) $this->saleVouchers->where('type', 'payment')->sum('amount');
+            $refunds = (float) $this->saleVouchers->where('type', 'refund')->sum('amount');
+            return max(0, $payments - $refunds);
+        }
+
+        $payments = (float) ($this->saleVouchers()->where('type', 'payment')->sum('amount') ?? 0);
+        $refunds = (float) ($this->saleVouchers()->where('type', 'refund')->sum('amount') ?? 0);
+        return max(0, $payments - $refunds);
+    }
+
+    public function getTotalDueAttribute()
+    {
+        if ($this->relationLoaded('saleVouchers')) {
+            $payments = (float) $this->saleVouchers->where('type', 'payment')->sum('amount');
+            $refunds = (float) $this->saleVouchers->where('type', 'refund')->sum('amount');
+            $adjustments = (float) $this->saleVouchers->whereIn('type', ['adjustment', 'discount'])->sum('amount');
+            return max(0, (float) $this->price_net + $refunds - $payments - $adjustments);
+        }
+
+        $payments = (float) ($this->saleVouchers()->where('type', 'payment')->sum('amount') ?? 0);
+        $refunds = (float) ($this->saleVouchers()->where('type', 'refund')->sum('amount') ?? 0);
+        $adjustments = (float) ($this->saleVouchers()->whereIn('type', ['adjustment', 'discount'])->sum('amount') ?? 0);
+        return max(0, (float) $this->price_net + $refunds - $payments - $adjustments);
     }
 }

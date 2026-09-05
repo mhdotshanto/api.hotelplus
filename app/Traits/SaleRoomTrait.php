@@ -100,6 +100,8 @@ trait SaleRoomTrait
             'discount_amount' => $this->fixDecimal($discountAmount),
             'price_sale' => $priceSale,
             'price_net' => $priceSale,
+            'total_due' => $priceSale,
+            'total_paid' => 0.00,
             'remarks' => $validated['payment_details']['remarks'],
             'date_checkin' => $temp->details->min('date'),
             'date_checkout' => Carbon::parse($temp->details->max('date'))->addDay()->format('Y-m-d'),

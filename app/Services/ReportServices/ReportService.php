@@ -33,8 +33,11 @@ class ReportService
         return AccHead::select('id')->where('slug', $slug)->first()->id;
     }
 
-    public function getPaymentSummary($saleId) // will be removed after completion
+    public function getPaymentSummary($saleId)
     {
+        $sale = SaleRoom::find($saleId);
+        $netPrice = $sale ? (float) $sale->price_net : 0;
+
         $total_bills = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
             ->whereIn('voucher_id', function ($q) use ($saleId) {
@@ -43,8 +46,12 @@ class ReportService
                     ->where('sale_room_id', $saleId)
                     ->where('type', 'bill');
             })
-            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(debit)-SUM(credit) as total_bill_amount')
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit, SUM(debit)-SUM(credit) as total_bill_amount')
             ->first();
+
+        $billAmount = ($total_bills && (float) $total_bills->total_bill_amount > 0)
+            ? (float) $total_bills->total_bill_amount
+            : $netPrice;
 
         $total_payments = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
@@ -54,11 +61,14 @@ class ReportService
                     ->where('sale_room_id', $saleId)
                     ->whereIn('type', ['refund', 'payment']);
             })
-            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_payment_amount')
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit, SUM(credit)-SUM(debit) as total_payment_amount')
             ->first();
 
         $totalTips = AccVoucher::where('sale_room_id', $saleId)
             ->where('type', 'tip')->selectRaw('SUM(amount) as total_tip_amount')->first();
+
+        $totalRefunds = AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'refund')->selectRaw('SUM(amount) as total_refund_amount')->first();
 
         $total_adjustment = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
@@ -68,22 +78,20 @@ class ReportService
                     ->where('sale_room_id', $saleId)
                     ->where('type', 'adjustment');
             })
-            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_adjustment')
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit, SUM(credit)-SUM(debit) as total_adjustment')
             ->first();
-        // $typeWiseSummary = AccVoucher::where('sale_room_id', $saleId)
-        //     ->where('type', '!=', 'bill')->selectRaw('type,sum(amount) as total')->groupBy('type')->pluck('total','type');
-        //     $total_payment = $typeWiseSummary->get('payment',0);
-        //     $total_refund = $typeWiseSummary->get('refund',0);
-        //     $total_adjustment = $typeWiseSummary->get('adjustment',0);
+
+        $paidAmount = (float) ($total_payments->total_payment_amount ?? 0);
+        $adjustmentAmount = (float) ($total_adjustment->total_adjustment ?? 0);
+        $dueAmount = max(0, $billAmount - $paidAmount - $adjustmentAmount);
+
         return response()->json([
-            "total_bill" => (float) $total_bills->total_bill_amount,
-            "total_paid" => (float) $total_payments->total_payment_amount ?? 0,
-            "total_adjustment" => (float) $total_adjustment->total_adjustment,
-            "total_tip" => (float) $totalTips->total_tip_amount,
-            "total_due"  => (float) ($total_bills->total_bill_amount ?? 0) - (($total_payments->total_payment_amount ?? 0) + ($total_adjustment->total_adjustment ?? 0)),
-            // "total_payment" => $total_payment,
-            // "total_refund"=> $total_refund,
-            // "total_adjustment"=> $total_adjustment
+            "total_bill" => $billAmount,
+            "total_paid" => max(0, $paidAmount),
+            "total_refund" => (float) ($totalRefunds->total_refund_amount ?? 0),
+            "total_adjustment" => $adjustmentAmount,
+            "total_tip" => (float) ($totalTips->total_tip_amount ?? 0),
+            "total_due"  => $dueAmount,
         ]);
     }
 
@@ -180,14 +188,17 @@ class ReportService
         $paymentSummary = $this->getPaymentSummary($id);
        // dd($paymentSummary);
         if ($paymentSummary) {
-            $total_paid = $paymentSummary->getData()->total_paid;
-            if ($total_paid > 0) {
-                $total_due = $paymentSummary->getData()->total_due;
+            $total_paid = (float) $paymentSummary->getData()->total_paid;
+            $total_adjustment = (float) ($paymentSummary->getData()->total_adjustment ?? 0);
+            $total_bill = (float) ($paymentSummary->getData()->total_bill ?? 0);
+            if ($total_paid > 0 && $total_bill > 0) {
+                $total_due = (float) $paymentSummary->getData()->total_due;
             } else {
-                $total_due = $totalAmount;
+                $total_due = max(0, (float) $data->price_net - $total_paid - $total_adjustment);
             }
         } else {
-            $total_due = $totalAmount;
+            $total_paid = 0.00;
+            $total_due = (float) $data->price_net;
         }
         $data = [
             'saleRoom' => $data,
@@ -199,8 +210,8 @@ class ReportService
             'totalRoomQty' => $totalQty,
             'totalXbQty' => $totalXbQty,
             'roomTypeRowSpan' => $roomTypeRowSpan,
-            'totalAmount' => $totalAmount,
-            'totalPaid' => 0.00,
+            'totalAmount' => (float) $data->price_net,
+            'totalPaid' => $total_paid,
             'totalDue' => $total_due,
             'ledger_data'=> $ledgerData,
             'ledger_summary' => $ledger_summary,
@@ -293,14 +304,17 @@ class ReportService
         }
         $paymentSummary = $this->getPaymentSummary($id);
         if ($paymentSummary) {
-            $total_paid = $paymentSummary->getData()->total_paid;
-            if ($total_paid > 0) {
-                $total_due = $paymentSummary->getData()->total_due;
+            $total_paid = (float) $paymentSummary->getData()->total_paid;
+            $total_adjustment = (float) ($paymentSummary->getData()->total_adjustment ?? 0);
+            $total_bill = (float) ($paymentSummary->getData()->total_bill ?? 0);
+            if ($total_paid > 0 && $total_bill > 0) {
+                $total_due = (float) $paymentSummary->getData()->total_due;
             } else {
-                $total_due = $totalAmount;
+                $total_due = max(0, (float) $data->price_net - $total_paid - $total_adjustment);
             }
         } else {
-            $total_due = $totalAmount;
+            $total_paid = 0.00;
+            $total_due = (float) $data->price_net;
         }
         $name = $data->code . ': RESERVATION CONFIRMATION SHEET';
         $data = [
@@ -313,8 +327,8 @@ class ReportService
             'totalRoomQty' => $totalQty,
             'totalXbQty' => $totalXbQty,
             'roomTypeRowSpan' => $roomTypeRowSpan,
-            'totalAmount' => $data->price_net,
-            'totalPaid' => $total_paid??0.00,
+            'totalAmount' => (float) $data->price_net,
+            'totalPaid' => $total_paid,
             'totalDue' => $total_due,
         ];
         return $data;

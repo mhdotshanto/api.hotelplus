@@ -55,14 +55,24 @@ class SaleRoomObserver
         }
 
         if ($saleRoom->wasChanged('price_net')) {
-            $totalPaid = AccLedger::where('type', 'sale')
-                ->where('sale_room_id', $saleRoom->id)
-                ->sum('credit');
+            $payments = (float) (\App\Models\AccVoucher::where('sale_room_id', $saleRoom->id)
+                ->where('type', 'payment')
+                ->sum('amount') ?? 0);
 
-            $totalDue = max(0, $saleRoom->price_net - $totalPaid);
+            $refunds = (float) (\App\Models\AccVoucher::where('sale_room_id', $saleRoom->id)
+                ->where('type', 'refund')
+                ->sum('amount') ?? 0);
+
+            $adjustments = (float) (\App\Models\AccVoucher::where('sale_room_id', $saleRoom->id)
+                ->whereIn('type', ['adjustment', 'discount'])
+                ->sum('amount') ?? 0);
+
+            $netPaid = max(0, $payments - $refunds);
+            $totalDue = max(0, (float) $saleRoom->price_net + $refunds - $payments - $adjustments);
 
             $saleRoom->updateQuietly([
                 'total_due' => $totalDue,
+                'total_paid' => $netPaid,
             ]);
         }
     }
