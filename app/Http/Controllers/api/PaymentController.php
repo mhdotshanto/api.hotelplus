@@ -367,8 +367,10 @@ class PaymentController extends Controller
             })
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_payment_amount')
             ->first();
-            $totalTips = AccVoucher::where('sale_room_id',$saleId)
+        $totalTips = AccVoucher::where('sale_room_id',$saleId)
             ->where('type','tip')->selectRaw('SUM(amount) as total_tip_amount')->first();
+        $totalRefunds = AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'refund')->selectRaw('SUM(amount) as total_refund_amount')->first();
         $total_adjustment = AccLedger::where('type', 'sale')
             ->where('sale_room_id', $saleId)
             ->whereIn('voucher_id', function ($q) use ($saleId) {
@@ -380,22 +382,14 @@ class PaymentController extends Controller
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit,SUM(credit)-SUM(debit) as total_adjustment')
             ->first();
 
-            // $typeWiseSummary = AccVoucher::where('sale_room_id', $saleId)
-            //     ->where('type', '!=', 'bill')->selectRaw('type,sum(amount) as total')->groupBy('type')->pluck('total','type');
-            //     $total_payment = $typeWiseSummary->get('payment',0);
-            //     $total_refund = $typeWiseSummary->get('refund',0);
-            //     $total_adjustment = $typeWiseSummary->get('adjustment',0);
-            return response()->json([
-                "total_bill" => (float) $total_bills->total_bill_amount,
-                "total_paid" => (float) $total_payments->total_payment_amount ?? 0,
-                "total_adjustment" => (float) $total_adjustment->total_adjustment,
-                "total_tip" => (float) $totalTips->total_tip_amount,
-                "total_due"  => (float) ($total_bills->total_bill_amount??0) - (($total_payments->total_payment_amount ?? 0) +($total_adjustment->total_adjustment??0) + ($totalTips->total_tip_amount ?? 0)),
-
-                // "total_payment" => $total_payment,
-                // "total_refund"=> $total_refund,
-                // "total_adjustment"=> $total_adjustment
-            ]);
+        return response()->json([
+            "total_bill" => (float) $total_bills->total_bill_amount,
+            "total_paid" => (float) $total_payments->total_payment_amount ?? 0,
+            "total_adjustment" => (float) $total_adjustment->total_adjustment,
+            "total_tip" => (float) $totalTips->total_tip_amount,
+            "total_refund" => (float) ($totalRefunds->total_refund_amount ?? 0),
+            "total_due"  => (float) ($total_bills->total_bill_amount??0) - (($total_payments->total_payment_amount ?? 0) +($total_adjustment->total_adjustment??0) + ($totalTips->total_tip_amount ?? 0)),
+        ]);
     }
 
 }

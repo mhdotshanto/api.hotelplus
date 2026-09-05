@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
+    protected $appends = ['total_refund'];
 
     protected static function booted(): void
     {
@@ -146,5 +147,18 @@ class SaleRoom extends Model
     {
         return $this->hasMany(AccLedger::class, 'sale_room_id')
             ->where('type', 'sale');
+    }
+
+    public function getTotalRefundAttribute()
+    {
+        if (array_key_exists('total_refund', $this->attributes)) {
+            return (float) $this->attributes['total_refund'];
+        }
+
+        if ($this->relationLoaded('saleVouchers')) {
+            return (float) $this->saleVouchers->where('type', 'refund')->sum('amount');
+        }
+
+        return (float) ($this->saleVouchers()->where('type', 'refund')->sum('amount') ?? 0);
     }
 }
