@@ -1254,6 +1254,10 @@ class SaleRoomController extends Controller
                 ]);
             }])->findOrFail($validated['temp_id']);
 
+            if ($temp->details->isEmpty()) {
+                throw new \Exception('At least one room is required to update a reservation.');
+            }
+
             // Get basic config (VAT, service charge, etc.)
             $config = Config::pluck('value', 'slug')->toArray();
 
@@ -1261,8 +1265,9 @@ class SaleRoomController extends Controller
             $guest = Guest::findOrFail($validated['guest_id']);
             $preferences = $guest->load('preferences')->preferences->pluck('id');
 
-            // Total price before any discounts
-            $totalPrice = $this->getTempDetailsTotalPrice($temp->details);
+            $totalPrice = $validated['payment_details']['discountType'] == 'customize-rate' ?
+                $this->customRateTotal($validated['payment_details']['customRates'])
+                : $this->getTempDetailsTotalPrice($temp->details);
 
             // Calculate final prices
             $grossPrice = $this->applyVatAndServiceCharge($totalPrice);
@@ -1283,6 +1288,11 @@ class SaleRoomController extends Controller
 
             $roomNumberIds = $temp->details->pluck('room_number_id')->unique()->toArray();
             $roomNames = RoomNumber::whereIn('id', $roomNumberIds)->pluck('name')->toArray();
+
+            $masterRoom = $validated['payment_details']['masterRoom'] ?? '';
+            if (!in_array($masterRoom, $roomNames) && !empty($roomNames)) {
+                $masterRoom = $roomNames[0];
+            }
 
             $priceSale = $grossPrice->gross - $discountData['discount_amount'];
 
@@ -1307,17 +1317,6 @@ class SaleRoomController extends Controller
                 amount: $amount
             );
 
-//            if ($sale->price_sale != $priceSale) {
-//                $voucher = AccVoucher::where('sale_room_id', $sale->id)->with('ledgers')->first();
-//                if ($voucher) {
-//                    AccLedger::where('voucher_id', $voucher->id)
-//                        ->update([
-//                            'debit'  => DB::raw("CASE WHEN debit > 0 THEN {$priceSale} ELSE debit END"),
-//                            'credit' => DB::raw("CASE WHEN credit > 0 THEN {$priceSale} ELSE credit END"),
-//                        ]);
-//                }
-//            }
-
             //UPDATE SaleRoom
             $sale->update([
                 'guest_id' => $guest->id,
@@ -1331,7 +1330,7 @@ class SaleRoomController extends Controller
                 'guest_address' => $guest->perm_address,
                 'ref_id' => $guest->ref_id,
                 'user_id' => $authenticatedUser->id,
-                'master_room' => $validated['payment_details']['masterRoom'],
+                'master_room' => $masterRoom,
                 'rooms' => implode(', ', $roomNames),
                 'guest_qty' => $validated['payment_details']['paxGuest'],
                 'room_qty' => $temp->details->sum('qty'),
@@ -1343,16 +1342,16 @@ class SaleRoomController extends Controller
                 'servicecharge_per' => $config['service-charge'],
                 'servicecharge_amount' => round($grossPrice->service_charge_amount, 2),
                 'price_gross' => $grossPrice->gross,
-                'discount_type' => $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : 'none'),
+                'discount_type' => $discountType === 'by-invoice' ? 'invoice' : ($discountType === 'by-category' ? 'category' : ($discountType === 'customize-rate' ? 'custom_rate' : 'none')),
                 'discount_per' => $discountData['discount_per'],
                 'discount_amount' => $this->fixDecimal($discountData['discount_amount'], 2),
                 'price_sale' => $priceSale,
                 'price_net' => $priceSale,
                 'remarks' => $validated['payment_details']['remarks'],
                 'date_checkin' => $temp->details->min('date'),
-                'date_checkout' => $temp->details->max('date'),
-                'eta' => Carbon::createFromFormat('h:i A', $validated['payment_details']['eta'])->format('H:i:s'),
-                'etd' => Carbon::createFromFormat('h:i A', $validated['payment_details']['etd'])->format('H:i:s'),
+                'date_checkout' => Carbon::parse($temp->details->max('date'))->addDay()->format('Y-m-d'),
+                'eta' => !empty($validated['payment_details']['eta']) ? Carbon::parse($validated['payment_details']['eta'])->format('H:i:s') : '12:00:00',
+                'etd' => !empty($validated['payment_details']['etd']) ? Carbon::parse($validated['payment_details']['etd'])->format('H:i:s') : '11:00:00',
                 'date_to_confirm' => now(),
                 'status' => $sale->status,
                 'is_room_allocated' => 0,
@@ -1366,7 +1365,8 @@ class SaleRoomController extends Controller
                 $discountType,
                 $discountData['discount_per'],
                 $sale->id,
-                $tempDetailsCollection
+                $tempDetailsCollection,
+                $validated['payment_details']['customRates'] ?? []
             );
 
             $this->createSaleRoomAllocations(
@@ -1377,8 +1377,8 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
-        } catch (Exception $e) {
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code, 'token' => $sale->token]);
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json($e->getMessage(), 500);
         }
@@ -1388,6 +1388,9 @@ class SaleRoomController extends Controller
     {
         try {
             DB::beginTransaction();
+            $authenticatedUser = auth()->user();
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
+
             $sale = SaleRoom::where('code', $request->code)
                 ->select('id', 'user_id', 'guest_id')
                 ->with('sale_room_allocation', 'sale_guest')
@@ -1396,32 +1399,39 @@ class SaleRoomController extends Controller
             $temp = RoomTemp::where('sale_id', $sale->id)->first();
 
             if ($temp) {
-                if ($temp->updated_at < Carbon::now()->subHour(1)) {
-                    $temp->delete();
-                    $temp->details()->delete();
-                    $temp = false;
-                }
-            }
-
-            if (!$temp) {
-                $temp = RoomTemp::create([
-                    'sale_id' => $sale->id,
-                    'user_id' => $sale->user_id,
+                $temp->details()->delete();
+                $temp->update([
+                    'user_id' => $authenticatedUser->id,
                     'guest_id' => $sale->guest_id,
                     'type' => 'sales',
                 ]);
-                $details = $sale->sale_room_allocation->map(function ($allocation) {
-                    return [
-                        'room_number_id' => $allocation->room_number_id,
-                        'room_category_id' => $allocation->room_category_id,
-                        'room_name_id' => $allocation->room_name_id,
-                        'bed'   => $allocation->bed,
-                        'date' => $allocation->date,
-                        'has_xb' => $allocation->is_xb,
-                    ];
-                })->toArray();
-                $temp->details()->createMany($details);
+            } else {
+                $timestamp = \Illuminate\Support\Carbon::now()->valueOf();
+                $sessionId = (int) ($timestamp . $authenticatedUser->id);
+                $temp = RoomTemp::create([
+                    'id' => $sessionId,
+                    'sale_id' => $sale->id,
+                    'user_id' => $authenticatedUser->id,
+                    'guest_id' => $sale->guest_id,
+                    'type' => 'sales',
+                ]);
             }
+
+            $grouped = $sale->sale_room_allocation->groupBy(fn($item) => $item->room_number_id . '_' . $item->date);
+            $details = $grouped->map(function ($group) {
+                $first = $group->first();
+                $hasXb = $group->contains('is_xb', 1) ? 1 : 0;
+                return [
+                    'room_number_id'   => $first->room_number_id,
+                    'room_category_id' => $first->room_category_id,
+                    'room_name_id'     => $first->room_name_id,
+                    'bed'              => $first->bed,
+                    'date'             => $first->date,
+                    'has_xb'           => $hasXb,
+                ];
+            })->values()->toArray();
+
+            $temp->details()->createMany($details);
 
             $dates = collect($sale->sale_room_allocation)->pluck('date')->sort()->values();
 
@@ -1435,7 +1445,7 @@ class SaleRoomController extends Controller
             ]);
         } catch (Exception $e) {
             DB::rollBack();
-            return response()->json($e->getMessage());
+            return response()->json($e->getMessage(), 500);
         }
     }
 
@@ -1453,11 +1463,11 @@ class SaleRoomController extends Controller
                 ]);
             },
             'room_categories'  => function ($roomCategoriesQuery) {
-                $roomCategoriesQuery->select('sale_id', 'category_id', 'gross_rate', 'is_xb', 'discount_per', 'discount_amount', 'bed', DB::raw('SUM(qty) as total_qty'))
+                $roomCategoriesQuery->select('sale_id', 'category_id', 'rate', 'gross_rate', 'rate_sale', 'is_xb', 'discount_per', 'discount_amount', 'bed', DB::raw('SUM(qty) as total_qty'))
                     ->with('category', function ($categoryQuery) {
                         $categoryQuery->select('id', 'name');
                     })
-                    ->groupBy('category_id', 'is_xb')
+                    ->groupBy('category_id', 'is_xb', 'rate', 'bed')
                     ->orderBy('category_id', 'asc');
             }
         ]));
@@ -1583,35 +1593,45 @@ class SaleRoomController extends Controller
     {
         try {
             DB::beginTransaction();
+            $authenticatedUser = auth()->user();
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
+
             $temp = RoomTemp::where('sale_id', $saleRoom->id)->first();
 
             if ($temp) {
-                if ($temp->updated_at < Carbon::now()->subHour(1)) {
-                    $temp->delete();
-                    $temp->details()->delete();
-                    $temp = false;
-                }
-            }
-
-            if (!$temp) {
-                $temp = RoomTemp::create([
-                    'sale_id' => $saleRoom->id,
-                    'user_id' => $saleRoom->user_id,
+                $temp->details()->delete();
+                $temp->update([
+                    'user_id' => $authenticatedUser->id,
                     'guest_id' => $saleRoom->guest_id,
                     'type' => 'sales',
                 ]);
-                $details = $saleRoom->sale_room_allocation->map(function ($allocation) {
-                    return [
-                        'room_number_id' => $allocation->room_number_id,
-                        'room_category_id' => $allocation->room_category_id,
-                        'room_name_id' => $allocation->room_name_id,
-                        'bed'   => $allocation->bed,
-                        'date' => $allocation->date,
-                        'has_xb' => $allocation->is_xb,
-                    ];
-                })->toArray();
-                $temp->details()->createMany($details);
+            } else {
+                $timestamp = \Illuminate\Support\Carbon::now()->valueOf();
+                $sessionId = (int) ($timestamp . $authenticatedUser->id);
+                $temp = RoomTemp::create([
+                    'id' => $sessionId,
+                    'sale_id' => $saleRoom->id,
+                    'user_id' => $authenticatedUser->id,
+                    'guest_id' => $saleRoom->guest_id,
+                    'type' => 'sales',
+                ]);
             }
+
+            $grouped = $saleRoom->sale_room_allocation->groupBy(fn($item) => $item->room_number_id . '_' . $item->date);
+            $details = $grouped->map(function ($group) {
+                $first = $group->first();
+                $hasXb = $group->contains('is_xb', 1) ? 1 : 0;
+                return [
+                    'room_number_id'   => $first->room_number_id,
+                    'room_category_id' => $first->room_category_id,
+                    'room_name_id'     => $first->room_name_id,
+                    'bed'              => $first->bed,
+                    'date'             => $first->date,
+                    'has_xb'           => $hasXb,
+                ];
+            })->values()->toArray();
+
+            $temp->details()->createMany($details);
 
             $dates = collect($saleRoom->sale_room_allocation)->pluck('date')->sort()->values();
             DB::commit();
@@ -1624,7 +1644,7 @@ class SaleRoomController extends Controller
             ]);
         } catch (Exception $e) {
             DB::rollBack();
-            return response()->json($e->getMessage());
+            return response()->json($e->getMessage(), 500);
         }
     }
 
@@ -1632,22 +1652,27 @@ class SaleRoomController extends Controller
     {
         DB::beginTransaction();
         try {
-            // Fetch the RoomTemp record
+            $authenticatedUser = auth()->user();
+            if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
+
             $roomTemp = RoomTemp::where('sale_id', $sale_id)->firstOrFail();
             $roomTemp->details()->delete();
+            $roomTemp->update(['user_id' => $authenticatedUser->id]);
 
             $roomAllocations = SaleRoomAllocation::where('room_sale_id', $sale_id)->get();
-            //            return response()->json($roomAllocations);
-            $details = $roomAllocations->map(function ($allocation) {
+            $grouped = $roomAllocations->groupBy(fn($item) => $item->room_number_id . '_' . $item->date);
+            $details = $grouped->map(function ($group) {
+                $first = $group->first();
+                $hasXb = $group->contains('is_xb', 1) ? 1 : 0;
                 return [
-                    'room_number_id' => $allocation->room_number_id,
-                    'room_category_id' => $allocation->room_category_id,
-                    'room_name_id' => $allocation->room_name_id,
-                    'bed' => $allocation->bed,
-                    'date' => $allocation->date,
-                    'has_xb' => $allocation->is_xb,
+                    'room_number_id'   => $first->room_number_id,
+                    'room_category_id' => $first->room_category_id,
+                    'room_name_id'     => $first->room_name_id,
+                    'bed'              => $first->bed,
+                    'date'             => $first->date,
+                    'has_xb'           => $hasXb,
                 ];
-            })->toArray();
+            })->values()->toArray();
 
             // Create new details
             $roomTemp->details()->createMany($details);
@@ -1656,7 +1681,7 @@ class SaleRoomController extends Controller
             return response()->json("discarded");
         } catch (\Exception $e) {
             DB::rollBack();
-            return  response()->json($e->getMessage());
+            return response()->json($e->getMessage(), 500);
         }
     }
 }
