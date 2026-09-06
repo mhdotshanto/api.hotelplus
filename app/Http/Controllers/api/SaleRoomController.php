@@ -154,15 +154,32 @@ class SaleRoomController extends Controller
             $user = auth()->user();
             if (!$user) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
-            $validated = $request->validate(['session_id' => ['nullable', 'numeric']]);
+            $validated = $request->validate([
+                'session_id' => ['nullable', 'numeric'],
+                'sale_id' => ['nullable', 'numeric']
+            ]);
             $sessionId = $validated['session_id'] ?? null;
+            $saleId = $validated['sale_id'] ?? null;
 
             if ($sessionId) {
-                $session = RoomTemp::where('id', $sessionId)
-                    ->where('user_id', $user->id)
-                    ->first();
+                $session = RoomTemp::where('id', $sessionId)->first();
 
-                if ($session) return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
+                if ($session) {
+                    if ($session->user_id !== $user->id) {
+                        $session->user_id = $user->id;
+                        $session->save();
+                    }
+                    return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
+                }
+            }
+
+            if ($saleId) {
+                $saleSession = RoomTemp::where('sale_id', $saleId)->first();
+                if ($saleSession) {
+                    $saleSession->user_id = $user->id;
+                    $saleSession->touch();
+                    return response()->json(['session_id' => $saleSession->id, 'is_new' => false], 200);
+                }
             }
 
             $newSessionId = $this->createSession($user->id);
@@ -192,8 +209,13 @@ class SaleRoomController extends Controller
 
         DB::beginTransaction();
         try {
-            $session = RoomTemp::where('id', $validated['session_id'])->where('user_id', $authenticatedUser->id)->first();
+            $session = RoomTemp::where('id', $validated['session_id'])->first();
             if (!$session) abort(404, "session not found");
+
+            if ($session->user_id !== $authenticatedUser->id) {
+                $session->user_id = $authenticatedUser->id;
+                $session->save();
+            }
 
             $yesterday = Carbon::yesterday()->toDateString();
             $temp_details = [];
@@ -1682,20 +1704,24 @@ class SaleRoomController extends Controller
     {
         try {
             DB::beginTransaction();
+            $authenticatedUser = auth()->user();
             $temp = RoomTemp::where('sale_id', $saleRoom->id)->first();
 
             if ($temp) {
                 if ($temp->updated_at < Carbon::now()->subHour(1)) {
-                    $temp->delete();
                     $temp->details()->delete();
+                    $temp->delete();
                     $temp = false;
+                } else {
+                    $temp->user_id = $authenticatedUser->id;
+                    $temp->touch();
                 }
             }
 
             if (!$temp) {
                 $temp = RoomTemp::create([
                     'sale_id' => $saleRoom->id,
-                    'user_id' => $saleRoom->user_id,
+                    'user_id' => $authenticatedUser->id,
                     'guest_id' => $saleRoom->guest_id,
                     'type' => 'sales',
                 ]);
