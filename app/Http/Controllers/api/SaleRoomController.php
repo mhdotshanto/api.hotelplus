@@ -202,7 +202,6 @@ class SaleRoomController extends Controller
             "rooms.*.rate" => ["required", "numeric"],
             "rooms.*.date" => ["required", "date"],
         ]);
-//        return response()->json($validated);
 
         DB::beginTransaction();
         try {
