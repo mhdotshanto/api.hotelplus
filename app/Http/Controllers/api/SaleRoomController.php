@@ -1725,16 +1725,21 @@ class SaleRoomController extends Controller
                     'guest_id' => $saleRoom->guest_id,
                     'type' => 'sales',
                 ]);
-                $details = $saleRoom->sale_room_allocation->map(function ($allocation) {
+                $allocationsGrouped = $saleRoom->sale_room_allocation->groupBy(function ($allocation) {
+                    return $allocation->room_number_id . '_' . $allocation->date;
+                });
+                $details = $allocationsGrouped->map(function ($group) {
+                    $first = $group->first();
+                    $hasXb = $group->contains('is_xb', 1) ? 1 : 0;
                     return [
-                        'room_number_id' => $allocation->room_number_id,
-                        'room_category_id' => $allocation->room_category_id,
-                        'room_name_id' => $allocation->room_name_id,
-                        'bed'   => $allocation->bed,
-                        'date' => $allocation->date,
-                        'has_xb' => $allocation->is_xb,
+                        'room_number_id' => $first->room_number_id,
+                        'room_category_id' => $first->room_category_id,
+                        'room_name_id' => $first->room_name_id,
+                        'bed'   => $first->bed,
+                        'date' => $first->date,
+                        'has_xb' => $hasXb,
                     ];
-                })->toArray();
+                })->values()->toArray();
                 $temp->details()->createMany($details);
             }
 
@@ -1762,17 +1767,21 @@ class SaleRoomController extends Controller
             $roomTemp->details()->delete();
 
             $roomAllocations = SaleRoomAllocation::where('room_sale_id', $sale_id)->get();
-            //            return response()->json($roomAllocations);
-            $details = $roomAllocations->map(function ($allocation) {
+            $roomAllocationsGrouped = $roomAllocations->groupBy(function ($allocation) {
+                return $allocation->room_number_id . '_' . $allocation->date;
+            });
+            $details = $roomAllocationsGrouped->map(function ($group) {
+                $first = $group->first();
+                $hasXb = $group->contains('is_xb', 1) ? 1 : 0;
                 return [
-                    'room_number_id' => $allocation->room_number_id,
-                    'room_category_id' => $allocation->room_category_id,
-                    'room_name_id' => $allocation->room_name_id,
-                    'bed' => $allocation->bed,
-                    'date' => $allocation->date,
-                    'has_xb' => $allocation->is_xb,
+                    'room_number_id' => $first->room_number_id,
+                    'room_category_id' => $first->room_category_id,
+                    'room_name_id' => $first->room_name_id,
+                    'bed' => $first->bed,
+                    'date' => $first->date,
+                    'has_xb' => $hasXb,
                 ];
-            })->toArray();
+            })->values()->toArray();
 
             // Create new details
             $roomTemp->details()->createMany($details);
