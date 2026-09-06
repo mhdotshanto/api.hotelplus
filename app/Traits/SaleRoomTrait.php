@@ -246,7 +246,7 @@ trait SaleRoomTrait
                     $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
                     $rateSale = $grossXbRate - $discountAmountItem;
                 } elseif ($discountType === 'by-category') {
-                    $discountPerItem = $currentCategory[$rateKey]['room']['percentage'];
+                    $discountPerItem = $currentCategory[$rateKey]['xb']['percentage'] ?? 0;
                     $discountAmountItem = $grossXbRate * ($discountPerItem / 100);
                     $rateSale = $grossXbRate - $discountAmountItem;
                 } elseif ($discountType === 'customize-rate')   {
@@ -294,10 +294,20 @@ trait SaleRoomTrait
                 : 0.0;
 
         } elseif ($discountType === 'by-category') {
-            $discountAmount = collect($byCategoryDiscount)->flatMap(fn($item) => [
-                $item['room']['amount'] ?? 0,
-                $item['xb']['amount'] ?? 0,
-            ])->sum();
+            $discountAmount = collect($byCategoryDiscount)->flatMap(function ($rateGroups) {
+                if (is_array($rateGroups) || $rateGroups instanceof \Illuminate\Support\Collection) {
+                    return collect($rateGroups)->flatMap(function ($item) {
+                        if (is_array($item) || $item instanceof \Illuminate\Support\Collection) {
+                            return [
+                                (float) ($item['room']['amount'] ?? 0),
+                                (float) ($item['xb']['amount'] ?? 0),
+                            ];
+                        }
+                        return [0];
+                    });
+                }
+                return [0];
+            })->sum();
 
             $discountPer = $grossPrice->gross > 0
                 ? $this->fixDecimal(($discountAmount / $grossPrice->gross) * 100)
