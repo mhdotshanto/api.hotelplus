@@ -1498,7 +1498,7 @@ class SaleRoomController extends Controller
             $temp->details()->delete();
             $temp->delete();
             DB::commit();
-            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code]);
+            return response()->json(['msg' => 'Room sale recorded successfully!', 'sale_id' => $sale->id, 'code' => $sale->code, 'token' => $sale->token]);
         } catch (Exception $e) {
             DB::rollBack();
             return response()->json($e->getMessage(), 500);
