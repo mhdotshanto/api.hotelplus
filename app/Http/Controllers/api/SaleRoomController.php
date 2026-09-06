@@ -180,7 +180,7 @@ class SaleRoomController extends Controller
         $authenticatedUser = auth()->user();
         if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
         $validated = $request->validate([
-            "session_id" => ["nullable", "numeric"],
+            "session_id" => ["required", "numeric"],
             "rooms" => ["required", "array"],
             "rooms.*.room_number_id" => ["required"],
             "rooms.*.room_category_id" => ["required"],
@@ -189,17 +189,60 @@ class SaleRoomController extends Controller
             "rooms.*.rate" => ["required", "numeric"],
             "rooms.*.date" => ["required", "date"],
         ]);
-//        return response()->json($validated);
 
         DB::beginTransaction();
         try {
             $session = RoomTemp::where('id', $validated['session_id'])->where('user_id', $authenticatedUser->id)->first();
             if (!$session) abort(404, "session not found");
 
+            $yesterday = Carbon::yesterday()->toDateString();
             $temp_details = [];
+            $conflicted_rooms = [];
             $now = now();
 
             foreach ($validated['rooms'] as $room) {
+                // Rule 1: Yesterday Date constraint
+                if (Carbon::parse($room['date'])->lt($yesterday)) {
+                    $conflicted_rooms[] = [
+                        'room_number_id' => $room['room_number_id'],
+                        'date' => $room['date'],
+                        'reason' => 'date_in_past',
+                        'message' => "Cannot hold rooms for dates earlier than yesterday ({$yesterday})."
+                    ];
+                    continue;
+                }
+
+                // Rule 2: Anti-collision cross-session check
+                $existingHold = RoomTempDetail::with('room_temp.user', 'room')
+                    ->where('room_number_id', $room['room_number_id'])
+                    ->where('date', $room['date'])
+                    ->where('room_temp_id', '!=', $session->id)
+                    ->first();
+
+                if ($existingHold) {
+                    $heldByName = $existingHold->room_temp?->user?->name ?? 'another user';
+                    $roomName = $existingHold->room?->name ?? "Room {$room['room_number_id']}";
+                    $conflicted_rooms[] = [
+                        'room_number_id' => $room['room_number_id'],
+                        'room_number' => $roomName,
+                        'date' => $room['date'],
+                        'reason' => 'held_by_other',
+                        'held_by' => $heldByName,
+                        'message' => "Room {$roomName} on {$room['date']} is already held by {$heldByName}."
+                    ];
+                    continue;
+                }
+
+                // Avoid duplicate insert in the same session
+                $alreadyInThisSession = RoomTempDetail::where('room_number_id', $room['room_number_id'])
+                    ->where('date', $room['date'])
+                    ->where('room_temp_id', $session->id)
+                    ->exists();
+
+                if ($alreadyInThisSession) {
+                    continue;
+                }
+
                 $temp_details[] = [
                     'room_temp_id' => $session->id,
                     'room_number_id' => $room['room_number_id'],
@@ -213,10 +256,66 @@ class SaleRoomController extends Controller
                 ];
             }
 
-            if (!empty($temp_details)) RoomTempDetail::insert($temp_details);
+            // If single room requested and it was conflicted, return 409 conflict error
+            if (count($validated['rooms']) === 1 && count($conflicted_rooms) > 0) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'conflict' => true,
+                    'message' => $conflicted_rooms[0]['message'],
+                    'conflicted_rooms' => $conflicted_rooms,
+                ], 409);
+            }
+
+            if (!empty($temp_details)) {
+                RoomTempDetail::insert($temp_details);
+            }
+
             $session->touch();
             DB::commit();
-            return response()->json(['room_temp' => $session]);
+
+            return response()->json([
+                'success' => true,
+                'room_temp' => $session,
+                'held_count' => count($temp_details),
+                'skipped_count' => count($conflicted_rooms),
+                'held_rooms' => $temp_details,
+                'skipped_rooms' => $conflicted_rooms,
+                'message' => count($conflicted_rooms) > 0
+                    ? count($temp_details) . " rooms held. " . count($conflicted_rooms) . " rooms skipped (already held/occupied)."
+                    : "Rooms held successfully."
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function roomTempReleaseDate(Request $request)
+    {
+        $authenticatedUser = auth()->user();
+        if (!$authenticatedUser) throw new UnauthorizedHttpException('', 'Unauthenticated');
+        $validated = $request->validate([
+            "session_id" => ["required", "numeric"],
+            "date" => ["required", "date"],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $session = RoomTemp::where('id', $validated['session_id'])->where('user_id', $authenticatedUser->id)->first();
+            if (!$session) abort(404, "session not found");
+
+            RoomTempDetail::where('room_temp_id', $session->id)
+                ->where('date', $validated['date'])
+                ->delete();
+
+            RoomTempDetailXb::where('room_temp_id', $session->id)
+                ->where('date', $validated['date'])
+                ->delete();
+
+            $session->touch();
+            DB::commit();
+            return response()->json(['success' => true, 'message' => "Rooms released for date {$validated['date']}."]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);

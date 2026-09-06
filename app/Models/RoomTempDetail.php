@@ -18,6 +18,11 @@ class RoomTempDetail extends Model
         return $this->belongsTo(RoomNumber::class,'room_number_id');
     }
 
+    public function roomNumber()
+    {
+        return $this->belongsTo(RoomNumber::class,'room_number_id');
+    }
+
     public function roomName()
     {
         return $this->belongsTo(RoomName::class, 'room_name_id');

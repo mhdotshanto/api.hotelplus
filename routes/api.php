@@ -103,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(SaleRoomController::class)->group(function () {
         Route::post('session', 'session');
         Route::post('room-temp-block', 'roomTempBlock');
+        Route::post('room-temp-release-date', 'roomTempReleaseDate');
         Route::delete('room-temp-details/{roomTempDetail}', 'destroyRoomTempDetail');
         Route::post('sale-room', 'saleRoom');
         Route::post('update-sale-room/{saleId}', 'updateSaleRoom');
@@ -124,6 +125,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('current-users-temp-list', 'getCurrentUsersTempList');
         Route::post('extend/{roomTemp}', 'extend');
         Route::delete('destroy/{roomTemp}', 'destroy');
+        Route::delete('destroy-all-sessions', 'destroyAll');
     });
 
     Route::resource('acc-banks', \App\Http\Controllers\api\AccBankController::class);

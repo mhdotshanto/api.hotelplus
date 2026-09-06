@@ -17,4 +17,9 @@ class RoomTemp extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function sale_room()
+    {
+        return $this->belongsTo(SaleRoom::class, 'sale_id', 'id');
+    }
 }
