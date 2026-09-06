@@ -154,8 +154,21 @@ class SaleRoomController extends Controller
             $user = auth()->user();
             if (!$user) throw new UnauthorizedHttpException('', 'Unauthenticated');
 
-            $validated = $request->validate(['session_id' => ['nullable', 'numeric']]);
+            $validated = $request->validate([
+                'session_id' => ['nullable', 'numeric'],
+                'sale_id' => ['nullable', 'numeric'],
+            ]);
             $sessionId = $validated['session_id'] ?? null;
+            $saleId = $validated['sale_id'] ?? null;
+
+            if ($saleId) {
+                $session = RoomTemp::where('sale_id', $saleId)
+                    ->where('user_id', $user->id)
+                    ->orderBy('id', 'DESC')
+                    ->first();
+
+                if ($session) return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
+            }
 
             if ($sessionId) {
                 $session = RoomTemp::where('id', $sessionId)
@@ -225,7 +238,7 @@ class SaleRoomController extends Controller
 
     public function destroyRoomTempDetail(RoomTempDetail $roomTempDetail)
     {
-        $roomTempDetail->room_temp->touch();
+        $roomTempDetail->room_temp?->touch();
         $roomTempDetail->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }
@@ -242,16 +255,28 @@ class SaleRoomController extends Controller
             $room_temp = RoomTemp::where('id', $validated['sale_id'])->first();
 
             if ($room_temp) {
-                RoomTempDetail::where('room_temp_id', $room_temp->id)
-                    ->where('date', $validated['date'])
-                    ->where('room_number_id', $validated['room_number_id'])
-                    ->delete();
+                if ($room_temp->sale_id) {
+                    $relatedTempIds = RoomTemp::where('sale_id', $room_temp->sale_id)->pluck('id');
+                    RoomTempDetail::whereIn('room_temp_id', $relatedTempIds)
+                        ->where('date', $validated['date'])
+                        ->where('room_number_id', $validated['room_number_id'])
+                        ->delete();
 
-                // delete this rooms extra bed if exist
-                RoomTempDetailXb::where('room_temp_id', $room_temp->id)
-                    ->where('date', $validated['date'])
-                    ->where('room_number_id', $validated['room_number_id'])
-                    ->delete();
+                    RoomTempDetailXb::whereIn('room_temp_id', $relatedTempIds)
+                        ->where('date', $validated['date'])
+                        ->where('room_number_id', $validated['room_number_id'])
+                        ->delete();
+                } else {
+                    RoomTempDetail::where('room_temp_id', $room_temp->id)
+                        ->where('date', $validated['date'])
+                        ->where('room_number_id', $validated['room_number_id'])
+                        ->delete();
+
+                    RoomTempDetailXb::where('room_temp_id', $room_temp->id)
+                        ->where('date', $validated['date'])
+                        ->where('room_number_id', $validated['room_number_id'])
+                        ->delete();
+                }
 
                 $room_temp->touch(); // only update `updated_at`
 

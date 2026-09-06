@@ -328,10 +328,13 @@ class RoomNumberController extends Controller
                     $roomTempQuery->whereBetween('date', [$date_start, $date_end]);
                 }
             },
-            'room_sale_allocation' => function ($roomSaleAllocationQuery) {
+            'room_sale_allocation' => function ($roomSaleAllocationQuery) use ($date_start, $date_end) {
                 $roomSaleAllocationQuery->with('saleRoom', function ($roomAllocationSaleQuery) {
                     $roomAllocationSaleQuery->with('user')->select('id', 'user_id', 'code', 'status', 'token');
                 });
+                if ($date_start && $date_end) {
+                    $roomSaleAllocationQuery->whereBetween('date', [$date_start, $date_end]);
+                }
             }
         ])->where('is_active', 1);
 
