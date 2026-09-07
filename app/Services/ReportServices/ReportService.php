@@ -101,7 +101,7 @@ class ReportService
             $id = $data->id;
                $ledgerData =  AccLedger::where('sale_room_id', $id)
                     ->where('type', 'sale')
-                    ->with('head')
+                    ->with(['head', 'ledgerNote', 'voucher'])
                     ->get();
 
             $totals = AccLedger::where('type', 'sale')
