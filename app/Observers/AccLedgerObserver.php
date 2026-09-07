@@ -2,7 +2,9 @@
 
 namespace App\Observers;
 
+use App\Enums\AccVoucherType;
 use App\Models\AccLedger;
+use App\Models\AccVoucher;
 use App\Models\SaleRoom;
 
 class AccLedgerObserver
@@ -16,21 +18,7 @@ class AccLedgerObserver
      */
     public function created(AccLedger $accLedger): void
     {
-        if($accLedger->type !== 'sale') return;
-
-        $sale = SaleRoom::find($accLedger->sale_room_id);
-        if (!$sale) return;
-
-        $saleLedger = AccLedger::where('type', 'sale')
-            ->where('sale_room_id', $sale->id)
-            ->selectRaw('SUM(debit) as total_due, SUM(credit) as total_paid')
-            ->first();
-
-//        $totalDue = max(0, $sale->price_net - $totalPaid);
-        $sale->update([
-            'total_due'  => $saleLedger->total_due,
-            'total_paid' => $saleLedger->total_paid
-        ]);
+        $this->syncSaleRoomBalances($accLedger);
     }
 
     /**
@@ -38,7 +26,7 @@ class AccLedgerObserver
      */
     public function updated(AccLedger $accLedger): void
     {
-        //
+        $this->syncSaleRoomBalances($accLedger);
     }
 
     /**
@@ -46,7 +34,35 @@ class AccLedgerObserver
      */
     public function deleted(AccLedger $accLedger): void
     {
-        //
+        $this->syncSaleRoomBalances($accLedger);
+    }
+
+    protected function syncSaleRoomBalances(AccLedger $accLedger): void
+    {
+        if ($accLedger->type !== 'sale') return;
+
+        $sale = SaleRoom::find($accLedger->sale_room_id);
+        if (!$sale) return;
+
+        $saleLedger = AccLedger::where('type', 'sale')
+            ->where('sale_room_id', $sale->id)
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
+            ->first();
+
+        $totalRefund = (float) (AccVoucher::where('sale_room_id', $sale->id)
+            ->where('type', AccVoucherType::REFUND->value)
+            ->sum('amount') ?? 0);
+
+        $totalCredit = (float) ($saleLedger->total_credit ?? 0);
+        $totalDebit  = (float) ($saleLedger->total_debit ?? 0);
+
+        $netPaid = $this->fixDecimal($totalCredit - $totalRefund);
+        $totalDue = $this->fixDecimal($totalDebit - $totalCredit);
+
+        $sale->updateQuietly([
+            'total_due'  => $totalDue,
+            'total_paid' => $netPaid
+        ]);
     }
 
     /**
@@ -54,7 +70,7 @@ class AccLedgerObserver
      */
     public function restored(AccLedger $accLedger): void
     {
-        //
+        $this->syncSaleRoomBalances($accLedger);
     }
 
     /**
@@ -62,6 +78,6 @@ class AccLedgerObserver
      */
     public function forceDeleted(AccLedger $accLedger): void
     {
-        //
+        $this->syncSaleRoomBalances($accLedger);
     }
 }

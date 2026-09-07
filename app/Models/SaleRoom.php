@@ -20,6 +20,20 @@ use Illuminate\Support\Carbon;
 class SaleRoom extends Model
 {
     protected $guarded = ['id'];
+    protected $appends = ['total_refund'];
+
+    public function getTotalRefundAttribute(): float
+    {
+        if ($this->relationLoaded('saleVouchers')) {
+            return (float) ($this->saleVouchers
+                ->where('type', 'refund')
+                ->sum('amount') ?? 0);
+        }
+
+        return (float) ($this->saleVouchers()
+            ->where('type', 'refund')
+            ->sum('amount') ?? 0);
+    }
 
     protected static function booted(): void
     {

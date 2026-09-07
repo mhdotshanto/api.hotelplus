@@ -55,11 +55,7 @@ class SaleRoomObserver
         }
 
         if ($saleRoom->wasChanged('price_net')) {
-            $totalPaid = AccLedger::where('type', 'sale')
-                ->where('sale_room_id', $saleRoom->id)
-                ->sum('credit');
-
-            $totalDue = max(0, $saleRoom->price_net - $totalPaid);
+            $totalDue = $this->fixDecimal((float) $saleRoom->price_net - (float) $saleRoom->total_paid);
 
             $saleRoom->updateQuietly([
                 'total_due' => $totalDue,

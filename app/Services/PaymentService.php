@@ -453,9 +453,18 @@ class PaymentService
             ->where('sale_room_id', $saleId)
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
             ->first();
+
+        $totalRefunds = (float) (AccVoucher::where('sale_room_id', $saleId)
+            ->where('type', 'refund')
+            ->sum('amount') ?? 0);
+
+        $totalCredit = (float) ($totals->total_credit ?? 0);
+        $totalDebit  = (float) ($totals->total_debit ?? 0);
+
         return response()->json([
-            "total_paid" => (float) $totals->total_credit ?? 0,
-            "total_due"  => (float) ($totals->total_debit ?? 0) - $totals->total_credit,
+            "total_paid"   => $totalCredit - $totalRefunds,
+            "total_refund" => $totalRefunds,
+            "total_due"    => $totalDebit - $totalCredit,
         ]);
     }
 
