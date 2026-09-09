@@ -481,4 +481,74 @@ class RoomTempAntiCollisionTest extends TestCase
             ->assertJson(['success' => false, 'conflict' => true]);
         $this->assertStringContainsString('maintenance', $response->json('message'));
     }
+
+    public function test_unauthenticated_session_call_is_rejected()
+    {
+        $response = $this->postJson('/api/session');
+        $response->assertStatus(401);
+    }
+
+    public function test_destroy_single_session_removes_it_from_db()
+    {
+        $session = RoomTemp::create(['user_id' => $this->user1->id]);
+        $date = Carbon::today()->addDays(25)->toDateString();
+        RoomTempDetail::create([
+            'room_temp_id' => $session->id,
+            'room_number_id' => $this->room->id,
+            'room_category_id' => $this->category->id,
+            'room_name_id' => $this->roomName->id,
+            'bed' => 'DBL',
+            'rate' => 2500,
+            'date' => $date
+        ]);
+
+        $response = $this->actingAs($this->user1)
+            ->deleteJson("/api/destroy/{$session->id}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('room_temps', ['id' => $session->id]);
+        $this->assertDatabaseMissing('room_temp_details', ['room_temp_id' => $session->id]);
+    }
+
+    public function test_session_extension_endpoint_touches_session()
+    {
+        $session = RoomTemp::create(['user_id' => $this->user1->id]);
+        
+        $response = $this->actingAs($this->user1)
+            ->postJson("/api/extend/{$session->id}");
+
+        $response->assertStatus(200)
+            ->assertJson(['message' => 'RoomTemp time extended successfully.']);
+    }
+
+    public function test_edit_session_verification_with_sale_id()
+    {
+        $sale = \App\Models\SaleRoom::create([
+            'user_id' => $this->user1->id,
+            'code' => 'TEST-SALE-001',
+            'status' => 'confirmed',
+            'price' => 5000,
+            'price_gross' => 5000,
+            'price_net' => 5000,
+            'date_checkin' => Carbon::today()->toDateString(),
+            'date_checkout' => Carbon::today()->addDays(2)->toDateString(),
+        ]);
+
+        // Create edit session for this sale
+        $editSession = RoomTemp::create([
+            'user_id' => $this->user1->id,
+            'sale_id' => $sale->id
+        ]);
+
+        // Verify that passing sale_id returns this exact edit session
+        $response = $this->actingAs($this->user1)
+            ->postJson('/api/session', ['sale_id' => $sale->id]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'session_id' => (string) $editSession->id,
+                'is_new' => false,
+                'message' => 'Edit session verified.'
+            ]);
+    }
 }
