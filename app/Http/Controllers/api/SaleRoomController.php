@@ -365,6 +365,14 @@ class SaleRoomController extends Controller
 
             if (!empty($temp_details)) {
                 RoomTempDetail::insert($temp_details);
+                
+                // Fetch newly inserted details with their real database IDs
+                $insertedDetails = RoomTempDetail::where('room_temp_id', $session->id)
+                    ->whereIn('room_number_id', array_column($temp_details, 'room_number_id'))
+                    ->whereIn('date', array_column($temp_details, 'date'))
+                    ->get();
+            } else {
+                $insertedDetails = collect();
             }
 
             $session->touch();
@@ -375,7 +383,7 @@ class SaleRoomController extends Controller
                 'room_temp' => $session,
                 'held_count' => count($temp_details),
                 'skipped_count' => count($conflicted_rooms),
-                'held_rooms' => $temp_details,
+                'held_rooms' => $insertedDetails,
                 'skipped_rooms' => $conflicted_rooms,
                 'message' => count($conflicted_rooms) > 0
                     ? count($temp_details) . " rooms held. " . count($conflicted_rooms) . " rooms skipped (already held/occupied/blocked)."
@@ -425,11 +433,33 @@ class SaleRoomController extends Controller
         }
     }
 
-    public function destroyRoomTempDetail(RoomTempDetail $roomTempDetail)
+    public function destroyRoomTempDetail(Request $request, $roomTempDetail)
     {
-        $roomTempDetail->room_temp->touch();
-        $roomTempDetail->delete();
-        return response()->json(['message' => 'Deleted successfully']);
+        $detail = is_numeric($roomTempDetail) ? RoomTempDetail::find($roomTempDetail) : null;
+        if ($detail) {
+            $detail->room_temp?->touch();
+            $detail->delete();
+            return response()->json(['success' => true, 'message' => 'Deleted successfully']);
+        }
+
+        // Fallback: Delete by session_id + room_number_id + date if ID is temporary or not found
+        $sessionId = $request->query('session_id') ?? $request->input('session_id');
+        $roomNumberId = $request->query('room_number_id') ?? $request->input('room_number_id');
+        $date = $request->query('date') ?? $request->input('date');
+
+        if ($sessionId && $roomNumberId && $date) {
+            $deleted = RoomTempDetail::where('room_temp_id', $sessionId)
+                ->where('room_number_id', $roomNumberId)
+                ->where('date', $date)
+                ->delete();
+
+            if ($deleted) {
+                RoomTemp::where('id', $sessionId)->touch();
+                return response()->json(['success' => true, 'message' => 'Deleted by room and date successfully']);
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Released successfully']);
     }
 
     public function saleRelease(Request $request)
