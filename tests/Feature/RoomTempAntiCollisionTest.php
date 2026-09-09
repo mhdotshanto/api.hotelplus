@@ -80,7 +80,7 @@ class RoomTempAntiCollisionTest extends TestCase
             ->postJson('/api/session');
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['session_id', 'is_new'])
+            ->assertJsonStructure(['session_id', 'is_new', 'message'])
             ->assertJson(['is_new' => true]);
 
         $sessionId = $response->json('session_id');
@@ -95,6 +95,65 @@ class RoomTempAntiCollisionTest extends TestCase
 
         $reuseResponse->assertStatus(200)
             ->assertJson(['session_id' => $sessionId, 'is_new' => false]);
+    }
+
+    public function test_expired_or_invalid_session_id_returns_new_session()
+    {
+        $invalidSessionId = '999999999999999';
+
+        $response = $this->actingAs($this->user1)
+            ->postJson('/api/session', ['session_id' => $invalidSessionId]);
+
+        $response->assertStatus(201)
+            ->assertJson(['is_new' => true]);
+
+        $newSessionId = $response->json('session_id');
+        $this->assertNotEquals($invalidSessionId, $newSessionId);
+        $this->assertDatabaseHas('room_temps', [
+            'id' => $newSessionId,
+            'user_id' => $this->user1->id
+        ]);
+    }
+
+    public function test_multi_tab_independent_session_creation()
+    {
+        // Tab 1 creates session
+        $tab1Response = $this->actingAs($this->user1)
+            ->postJson('/api/session');
+        $tab1Response->assertStatus(201);
+        $tab1SessionId = $tab1Response->json('session_id');
+
+        // Tab 2 creates session
+        $tab2Response = $this->actingAs($this->user1)
+            ->postJson('/api/session');
+        $tab2Response->assertStatus(201);
+        $tab2SessionId = $tab2Response->json('session_id');
+
+        // Verify Tab 1 and Tab 2 have different independent IDs
+        $this->assertNotEquals($tab1SessionId, $tab2SessionId);
+        $this->assertDatabaseHas('room_temps', ['id' => $tab1SessionId, 'user_id' => $this->user1->id]);
+        $this->assertDatabaseHas('room_temps', ['id' => $tab2SessionId, 'user_id' => $this->user1->id]);
+    }
+
+    public function test_other_users_session_cannot_be_reused()
+    {
+        // User 2 creates a session
+        $user2Session = RoomTemp::create(['user_id' => $this->user2->id]);
+
+        // User 1 tries to use User 2's session ID
+        $response = $this->actingAs($this->user1)
+            ->postJson('/api/session', ['session_id' => $user2Session->id]);
+
+        // User 1 should get a brand new session, NOT User 2's session
+        $response->assertStatus(201)
+            ->assertJson(['is_new' => true]);
+
+        $user1NewSessionId = $response->json('session_id');
+        $this->assertNotEquals((string) $user2Session->id, $user1NewSessionId);
+        $this->assertDatabaseHas('room_temps', [
+            'id' => $user1NewSessionId,
+            'user_id' => $this->user1->id
+        ]);
     }
 
     public function test_single_room_anti_collision_returns_409()

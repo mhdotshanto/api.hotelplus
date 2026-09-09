@@ -165,7 +165,12 @@ class SaleRoomController extends Controller
                 $session = RoomTemp::where('id', $sessionId)->where('user_id', $user->id)->first();
 
                 if ($session) {
-                    return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
+                    $session->touch();
+                    return response()->json([
+                        'session_id' => (string) $session->id,
+                        'is_new' => false,
+                        'message' => 'Session verified.'
+                    ], 200);
                 }
             }
 
@@ -173,15 +178,23 @@ class SaleRoomController extends Controller
                 $saleSession = RoomTemp::where('sale_id', $saleId)->where('user_id', $user->id)->first();
                 if ($saleSession) {
                     $saleSession->touch();
-                    return response()->json(['session_id' => $saleSession->id, 'is_new' => false], 200);
+                    return response()->json([
+                        'session_id' => (string) $saleSession->id,
+                        'is_new' => false,
+                        'message' => 'Edit session verified.'
+                    ], 200);
                 }
             }
 
             $newSessionId = $this->createSession($user->id);
-            return response()->json(['session_id' => $newSessionId, 'is_new' => true], 201);
+            return response()->json([
+                'session_id' => (string) $newSessionId,
+                'is_new' => true,
+                'message' => $sessionId ? 'Previous session expired or not found. New session created.' : 'New session created.'
+            ], 201);
         } catch (\Throwable $e) {
             return response()->json([
-                'error' => 'Failed to create session',
+                'error' => 'Failed to process session',
                 'message' => $e->getMessage()
             ], 500);
         }
