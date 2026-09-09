@@ -362,4 +362,64 @@ class RoomTempAntiCollisionTest extends TestCase
         $this->assertDatabaseMissing('room_temps', ['id' => $session2->id]);
         $this->assertDatabaseMissing('room_temp_details', ['room_temp_id' => $session1->id]);
     }
+
+    public function test_unauthorized_session_access_returns_403()
+    {
+        $session = RoomTemp::create(['user_id' => $this->user1->id]);
+        $targetDate = Carbon::today()->addDays(20)->toDateString();
+
+        // User 2 attempts to use User 1's session_id
+        $response = $this->actingAs($this->user2)
+            ->postJson('/api/room-temp-block', [
+                'session_id' => $session->id,
+                'rooms' => [
+                    [
+                        'room_number_id' => $this->room->id,
+                        'room_category_id' => $this->category->id,
+                        'room_name_id' => $this->roomName->id,
+                        'bed' => 'DBL',
+                        'rate' => 2500,
+                        'date' => $targetDate,
+                    ]
+                ]
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_maintenance_blocked_room_is_rejected_with_409()
+    {
+        $targetDate = Carbon::today()->addDays(22)->toDateString();
+
+        // Create a maintenance block
+        $block = \App\Models\RoomBlock::create([
+            'user_id' => $this->user1->id,
+            'note' => 'Air conditioning repair'
+        ]);
+        \App\Models\RoomBlockDetail::create([
+            'room_block_id' => $block->id,
+            'room_id' => $this->room->id,
+            'date' => $targetDate
+        ]);
+
+        $session = RoomTemp::create(['user_id' => $this->user1->id]);
+        $response = $this->actingAs($this->user1)
+            ->postJson('/api/room-temp-block', [
+                'session_id' => $session->id,
+                'rooms' => [
+                    [
+                        'room_number_id' => $this->room->id,
+                        'room_category_id' => $this->category->id,
+                        'room_name_id' => $this->roomName->id,
+                        'bed' => 'DBL',
+                        'rate' => 2500,
+                        'date' => $targetDate,
+                    ]
+                ]
+            ]);
+
+        $response->assertStatus(409)
+            ->assertJson(['success' => false, 'conflict' => true]);
+        $this->assertStringContainsString('maintenance', $response->json('message'));
+    }
 }

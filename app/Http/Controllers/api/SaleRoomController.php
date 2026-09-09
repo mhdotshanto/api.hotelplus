@@ -162,21 +162,16 @@ class SaleRoomController extends Controller
             $saleId = $validated['sale_id'] ?? null;
 
             if ($sessionId) {
-                $session = RoomTemp::where('id', $sessionId)->first();
+                $session = RoomTemp::where('id', $sessionId)->where('user_id', $user->id)->first();
 
                 if ($session) {
-                    if ($session->user_id !== $user->id) {
-                        $session->user_id = $user->id;
-                        $session->save();
-                    }
                     return response()->json(['session_id' => $session->id, 'is_new' => false], 200);
                 }
             }
 
             if ($saleId) {
-                $saleSession = RoomTemp::where('sale_id', $saleId)->first();
+                $saleSession = RoomTemp::where('sale_id', $saleId)->where('user_id', $user->id)->first();
                 if ($saleSession) {
-                    $saleSession->user_id = $user->id;
                     $saleSession->touch();
                     return response()->json(['session_id' => $saleSession->id, 'is_new' => false], 200);
                 }
@@ -212,21 +207,67 @@ class SaleRoomController extends Controller
             $session = RoomTemp::where('id', $validated['session_id'])->first();
             if (!$session) abort(404, "session not found");
 
-            if ($session->user_id !== $authenticatedUser->id) {
-                $session->user_id = $authenticatedUser->id;
-                $session->save();
-            }
+            // Prevent session hijacking / unauthorized modification
+            if ($session->user_id !== $authenticatedUser->id) abort(403, "Unauthorized: You do not own this reservation session.");
 
             $yesterday = Carbon::yesterday()->toDateString();
-            $temp_details = [];
-            $conflicted_rooms = [];
             $now = now();
 
+            // 1. Extract unique room IDs and dates for batch querying (O(1) database queries)
+            $requestedRooms = collect($validated['rooms']);
+            $roomIds = $requestedRooms->pluck('room_number_id')->unique()->values()->all();
+            $dates = $requestedRooms->pluck('date')->unique()->values()->all();
+
+            // 2. Batch Query: All active temp holds for these rooms & dates
+            $existingHolds = RoomTempDetail::with(['room_temp.user', 'room:id,name'])
+                ->whereIn('room_number_id', $roomIds)
+                ->whereIn('date', $dates)
+                ->get();
+
+            $otherHoldsMap = [];
+            $selfHoldsMap = [];
+
+            foreach ($existingHolds as $hold) {
+                $key = "{$hold->room_number_id}_{$hold->date}";
+                if ($hold->room_temp_id != $session->id) {
+                    $otherHoldsMap[$key] = $hold;
+                } else {
+                    $selfHoldsMap[$key] = true;
+                }
+            }
+
+            // 3. Batch Query: All maintenance blocks for these rooms & dates
+            $maintenanceBlocksMap = RoomBlockDetail::with(['roomBlock.user'])
+                ->whereIn('room_id', $roomIds)
+                ->whereIn('date', $dates)
+                ->get()
+                ->keyBy(fn($b) => "{$b->room_id}_{$b->date}");
+
+            // 4. Batch Query: All confirmed allocations (excluding current sale if editing)
+            $confirmedSalesMap = SaleRoomAllocation::with(['saleRoom.user'])
+                ->whereIn('room_number_id', $roomIds)
+                ->whereIn('date', $dates)
+                ->when($session->sale_id, fn($q) => $q->where('room_sale_id', '!=', $session->sale_id))
+                ->get()
+                ->keyBy(fn($s) => "{$s->room_number_id}_{$s->date}");
+
+            // 5. Room Names Map for fast O(1) label lookup
+            $roomNamesMap = RoomNumber::whereIn('id', $roomIds)->pluck('name', 'id')->toArray();
+
+            $temp_details = [];
+            $conflicted_rooms = [];
+            $seenInPayload = [];
+
+            // 6. Fast O(N) In-Memory Evaluation
             foreach ($validated['rooms'] as $room) {
+                $key = "{$room['room_number_id']}_{$room['date']}";
+                $roomName = $roomNamesMap[$room['room_number_id']] ?? "Room {$room['room_number_id']}";
+
                 // Rule 1: Yesterday Date constraint
                 if (Carbon::parse($room['date'])->lt($yesterday)) {
                     $conflicted_rooms[] = [
                         'room_number_id' => $room['room_number_id'],
+                        'room_number' => $roomName,
                         'date' => $room['date'],
                         'reason' => 'date_in_past',
                         'message' => "Cannot hold rooms for dates earlier than yesterday ({$yesterday})."
@@ -234,16 +275,39 @@ class SaleRoomController extends Controller
                     continue;
                 }
 
-                // Rule 2: Anti-collision cross-session check
-                $existingHold = RoomTempDetail::with('room_temp.user', 'room')
-                    ->where('room_number_id', $room['room_number_id'])
-                    ->where('date', $room['date'])
-                    ->where('room_temp_id', '!=', $session->id)
-                    ->first();
+                // Rule 2: Maintenance Block Check (O(1))
+                if (isset($maintenanceBlocksMap[$key])) {
+                    $block = $maintenanceBlocksMap[$key];
+                    $blockedByName = $block->roomBlock?->user?->name ?? 'Admin';
+                    $conflicted_rooms[] = [
+                        'room_number_id' => $room['room_number_id'],
+                        'room_number' => $roomName,
+                        'date' => $room['date'],
+                        'reason' => 'maintenance_blocked',
+                        'held_by' => $blockedByName,
+                        'message' => "Room {$roomName} on {$room['date']} is blocked for maintenance by {$blockedByName}."
+                    ];
+                    continue;
+                }
 
-                if ($existingHold) {
-                    $heldByName = $existingHold->room_temp?->user?->name ?? 'another user';
-                    $roomName = $existingHold->room?->name ?? "Room {$room['room_number_id']}";
+                // Rule 3: Confirmed Booking Check (O(1))
+                if (isset($confirmedSalesMap[$key])) {
+                    $sale = $confirmedSalesMap[$key];
+                    $saleCode = $sale->saleRoom?->code ?? 'Confirmed Sale';
+                    $conflicted_rooms[] = [
+                        'room_number_id' => $room['room_number_id'],
+                        'room_number' => $roomName,
+                        'date' => $room['date'],
+                        'reason' => 'already_booked',
+                        'message' => "Room {$roomName} on {$room['date']} is already booked (#{$saleCode})."
+                    ];
+                    continue;
+                }
+
+                // Rule 4: Anti-collision Cross-Session Temp Hold Check (O(1))
+                if (isset($otherHoldsMap[$key])) {
+                    $hold = $otherHoldsMap[$key];
+                    $heldByName = $hold->room_temp?->user?->name ?? 'another user';
                     $conflicted_rooms[] = [
                         'room_number_id' => $room['room_number_id'],
                         'room_number' => $roomName,
@@ -255,15 +319,12 @@ class SaleRoomController extends Controller
                     continue;
                 }
 
-                // Avoid duplicate insert in the same session
-                $alreadyInThisSession = RoomTempDetail::where('room_number_id', $room['room_number_id'])
-                    ->where('date', $room['date'])
-                    ->where('room_temp_id', $session->id)
-                    ->exists();
-
-                if ($alreadyInThisSession) {
+                // Rule 5: Avoid duplicate insert in the same session or within the current payload batch
+                if (isset($selfHoldsMap[$key]) || isset($seenInPayload[$key])) {
                     continue;
                 }
+
+                $seenInPayload[$key] = true;
 
                 $temp_details[] = [
                     'room_temp_id' => $session->id,
@@ -304,9 +365,16 @@ class SaleRoomController extends Controller
                 'held_rooms' => $temp_details,
                 'skipped_rooms' => $conflicted_rooms,
                 'message' => count($conflicted_rooms) > 0
-                    ? count($temp_details) . " rooms held. " . count($conflicted_rooms) . " rooms skipped (already held/occupied)."
+                    ? count($temp_details) . " rooms held. " . count($conflicted_rooms) . " rooms skipped (already held/occupied/blocked)."
                     : "Rooms held successfully."
             ]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
