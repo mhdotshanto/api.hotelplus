@@ -254,6 +254,15 @@ class PaymentController extends Controller
                     amount: $validatedData['cancellation_charge'],
                 );
 
+                // credit side entry for ladger adjustment
+                // $this->ledgerEntry(
+                //     ledgerType: LedgerType::SALE,
+                //     accType: AccType::SALE,
+                //     voucher: $voucher,
+                //     entryType: "credit"
+                // );
+                // credit side entry for ladger adjustment
+
                 //insert cancel reservation cashbook entries
                 $paymentService->cancelReservationCashbookEntries($voucher);
                 //insert cancel reservation ledger entries

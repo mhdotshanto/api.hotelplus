@@ -413,12 +413,14 @@ class PaymentService
     public function cancelReservationLedgerEntries(AccVoucher $voucher)
     {
         //sale ledger entry (acc_type:sale) credit side
-        $this->ledgerEntry(
-            ledgerType: LedgerType::SALE,
-            accType: AccType::SALE,
-            voucher: $voucher,
-            entryType: "credit"
-        );
+        // milon bhai------------------------
+        // $this->ledgerEntry(
+            //     ledgerType: LedgerType::SALE,
+            //     accType: AccType::SALE,
+            //     voucher: $voucher,
+            //     entryType: "credit"
+            // );
+        // milon bhai------------------------
 
         //sale ledger entry (acc_type:sale) debit side
         $this->ledgerEntry(
