@@ -99,9 +99,9 @@ class ReportService
         ])->where('token', $token)->first();
         if ($data) {
             $id = $data->id;
-               $ledgerData =  AccLedger::where('sale_room_id', $id)
+               $ledgerData =  AccLedger::with(['head', 'ledgerNote', 'voucher'])
+                    ->where('sale_room_id', $id)
                     ->where('type', 'sale')
-                    ->with('head')
                     ->get();
 
             $totals = AccLedger::where('type', 'sale')

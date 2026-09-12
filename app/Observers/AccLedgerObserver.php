@@ -49,6 +49,16 @@ class AccLedgerObserver
             ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
             ->first();
 
+        $totalPayments = (float) (AccLedger::where('type', 'sale')
+            ->where('sale_room_id', $sale->id)
+            ->whereIn('voucher_id', function ($q) use ($sale) {
+                $q->select('id')
+                    ->from('acc_vouchers')
+                    ->where('sale_room_id', $sale->id)
+                    ->where('type', AccVoucherType::PAYMENT->value);
+            })
+            ->sum('credit') ?? 0);
+
         $totalRefund = (float) (AccVoucher::where('sale_room_id', $sale->id)
             ->where('type', AccVoucherType::REFUND->value)
             ->sum('amount') ?? 0);
@@ -56,7 +66,7 @@ class AccLedgerObserver
         $totalCredit = (float) ($saleLedger->total_credit ?? 0);
         $totalDebit  = (float) ($saleLedger->total_debit ?? 0);
 
-        $netPaid = $this->fixDecimal($totalCredit - $totalRefund);
+        $netPaid = $this->fixDecimal($totalPayments - $totalRefund);
         $totalDue = $this->fixDecimal($totalDebit - $totalCredit);
 
         $sale->updateQuietly([

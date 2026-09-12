@@ -244,14 +244,18 @@ class PaymentController extends Controller
 
 //            return response()->json($validatedData);
 
-            if (!is_null($validatedData['note']) && !$saleRoom->note) {$saleRoom->note()->create(['note' => $validatedData['note'],]);}
+            if (!empty($validatedData['note'])) {
+                $saleRoom->note()->updateOrCreate(['sale_id' => $saleRoom->id], ['note' => $validatedData['note']]);
+            }
 
             if ($validatedData['cancellation_charge'] > 0) {
+                $cancellationNote = !empty($validatedData['note']) ? $validatedData['note'] : "Cancellation Charge";
                 //cancellation voucher
                 $voucher = $paymentService->createVoucher(
                     voucherType: AccVoucherType::CANCEL_RESERVATION,
                     saleId: $saleRoom->id,
                     amount: $validatedData['cancellation_charge'],
+                     note: $cancellationNote
                 );
 
                 //insert cancel reservation cashbook entries
@@ -344,6 +348,10 @@ class PaymentController extends Controller
                 entryType: 'credit',
                 note: 'Cancellation Adjustment'
             );
+
+            if (!empty($validated['notes'])) {
+                $saleRoom->note()->updateOrCreate(['sale_id' => $saleRoom->id], ['note' => $validated['notes']]);
+            }
 
             $saleRoom->status = "cancelled";
             $saleRoom->save();

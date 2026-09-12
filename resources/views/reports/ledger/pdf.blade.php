@@ -15,7 +15,7 @@
             @foreach ($data['ledger_data'] as $item)
                 <tr class="ledger-details">
                 <td width="20%" style="text-align:center">{{$item->date}}</td>
-                <td width="40%">{{$item->note}}</td>
+                <td width="40%">{{ $item->ledgerNote?->name ?? $item->voucher?->note ?? $item->note ?? 'N/A' }}</td>
                 <td width="20%" style="text-align:right">{{bdt_format($item->debit)}}</td>
                 <td width="20%" style="text-align:right">{{bdt_format($item->credit)}}</td>
                 </tr>                
