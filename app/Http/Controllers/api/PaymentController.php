@@ -328,11 +328,13 @@ class PaymentController extends Controller
             }
 
             if ($validated['cancellation_charge'] > 0) {
+                $cancellationNote = !empty($validated['notes']) ? $validated['notes'] : "Cancellation Charge";
                 //cancellation voucher
                 $cancellationVoucher = $paymentService->createVoucher(
                     voucherType: AccVoucherType::CANCEL_RESERVATION,
                     saleId: $saleRoom->id,
                     amount: $validated['cancellation_charge'],
+                    note: $cancellationNote
                 );
 
                 //insert cancel reservation cashbook entries

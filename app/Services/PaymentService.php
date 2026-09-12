@@ -134,7 +134,7 @@ class PaymentService
         if (!in_array($entryType, ['debit', 'credit'], true)) throw new \InvalidArgumentException("Invalid entry type: {$entryType}");
 
         $accNoteId = 0;
-        if (!empty($voucher->note)) $accNoteId = AccNote::create(['name' => $voucher->note])->id;
+        if (!empty($voucher->note)) $accNoteId = AccNote::firstOrCreate(['name' => $voucher->note])->id;
 
         // which account ID to assign
         $accHeadId = $accType === AccType::ACC_HEAD ? ( $customAccHeadId ?? $voucher->acc_head_id) : 0;
@@ -162,9 +162,10 @@ class PaymentService
     {
         //reservation billing voucher entry
         $billingVoucher = $this->createVoucher(
-            AccVoucherType::BILL,
-            $saleRoom->id,
-            $saleRoom->price_sale
+            voucherType: AccVoucherType::BILL,
+            saleId: $saleRoom->id,
+            amount: $saleRoom->price_sale,
+            note: "Room Reservation Bill"
         );
 
         //sale cashbook debit side entry (acc_type:acc_head)
@@ -480,7 +481,8 @@ class PaymentService
         $billingVoucher = $this->createVoucher(
             voucherType: AccVoucherType::BILL,
             saleId: $saleId,
-            amount: $amount
+            amount: $amount,
+            note: $amountStatus == "increased" ? "Reservation Bill Increased" : "Reservation Bill Decreased"
         );
 
         $this->insertCashbookEntry(
