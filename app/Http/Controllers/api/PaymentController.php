@@ -338,6 +338,13 @@ class PaymentController extends Controller
 
             }
 
+            $paymentService->adjustSaleLedgerEntry(
+                saleId: $saleRoom->id,
+                amount: $saleRoom->price_net,
+                entryType: 'credit',
+                note: 'Cancellation Adjustment'
+            );
+
             $saleRoom->status = "cancelled";
             $saleRoom->save();
 
