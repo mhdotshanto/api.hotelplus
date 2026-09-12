@@ -415,11 +415,11 @@ class PaymentService
         //sale ledger entry (acc_type:sale) credit side
         // milon bhai------------------------
         // $this->ledgerEntry(
-            //     ledgerType: LedgerType::SALE,
-            //     accType: AccType::SALE,
-            //     voucher: $voucher,
-            //     entryType: "credit"
-            // );
+        //     ledgerType: LedgerType::SALE,
+        //     accType: AccType::SALE,
+        //     voucher: $voucher,
+        //     entryType: "credit"
+        // );
         // milon bhai------------------------
 
         //sale ledger entry (acc_type:sale) debit side
@@ -601,5 +601,43 @@ class PaymentService
     public function adjustLedgersForSaleTip(AccVoucher $voucher){
         $this->reservationTipLedgersEntry($voucher);
         $this->reservationTipCashbookEntry($voucher);
+    }
+
+    /**
+     * Insert a direct sale ledger adjustment entry without a voucher.
+     */
+    public function adjustSaleLedgerEntry(
+        int $saleId,
+        float|string $amount,
+        string $entryType = 'credit',
+        ?string $note = null,
+        ?string $headSlug = self::SALE_ROOM_HEAD_SLUG,
+        ?string $referenceNumber = null,
+    ): AccLedger {
+        if (!in_array($entryType, ['debit', 'credit'], true)) throw new \InvalidArgumentException("Invalid entry type: {$entryType}");
+
+        $accHeadId = $this->getHeadIdBySlug($headSlug ?? self::SALE_ROOM_HEAD_SLUG);
+
+        $accNoteId = 0;
+        if (!empty($note)) {
+            $accNote = AccNote::firstOrCreate(['name' => $note]);
+            $accNoteId = $accNote->id;
+        }
+
+        return AccLedger::create([
+            'voucher_id'        => 0,
+            'sale_room_id'      => $saleId,
+            'acc_head_id'       => $accHeadId,
+            'bank_id'           => 0,
+            'party_id'          => 0,
+            'note_id'           => $accNoteId,
+            'date'              => Carbon::now(),
+            'type'              => LedgerType::SALE->value,
+            'acc_type'          => AccType::SALE->value,
+            'is_cash'           => true,
+            'reference_number'  => $referenceNumber,
+            'debit'             => $entryType === 'debit' ? (float) $amount : 0.00,
+            'credit'            => $entryType === 'credit' ? (float) $amount : 0.00,
+        ]);
     }
 }
