@@ -344,6 +344,7 @@ class PaymentController extends Controller
 
             }
 
+            // $paymentService->adjustSaleLedgerEntriesForSale();
             $paymentService->adjustSaleLedgerEntry(
                 saleId: $saleRoom->id,
                 amount: $saleRoom->price_net,

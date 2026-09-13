@@ -378,35 +378,36 @@ class PaymentService
 
     //cancel reservation cashbook ledger entries
     public function cancelReservationCashbookEntries(AccVoucher $voucher) {
-
-        //credit side entry(accType:ACC_HEAD)(ACC_HEAD:Room Sale)
+        // for cancelation charge 
+        
+        //credit side entry(accType:ACC_HEAD)(ACC_HEAD:Room Sale Cancellation Charge)
         $this->insertCashbookEntry(
             accType: AccType::ACC_HEAD,
             voucher: $voucher,
             entryType: 'credit',
-            customAccHeadId: $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)
+            // customAccHeadId: $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG) // milon bhai
         );
 
-        //debit side entry (accType:ACC_HEAD)(ACC_HEAD:Room Sale Cancellation Charge)
+        //debit side entry (accType:Party)(ACC_HEAD: party)
         $this->insertCashbookEntry(
-            accType: AccType::ACC_HEAD,
+            accType: AccType::PARTY,
             voucher: $voucher,
             entryType: 'debit',
         );
 
         //debit side entry(accType:Sale)(ACC_HEAD:Room Sale)
-        $this->insertCashbookEntry(
-            accType: AccType::SALE,
-            voucher: $voucher,
-            entryType: 'debit',
-        );
+        // $this->insertCashbookEntry(
+        //     accType: AccType::SALE,
+        //     voucher: $voucher,
+        //     entryType: 'debit',
+        // );
 
         //debit side entry(accType:Sale)(ACC_HEAD:Room Sale)
-        $this->insertCashbookEntry(
-            accType: AccType::SALE,
-            voucher: $voucher,
-            entryType: 'credit',
-        );
+        // $this->insertCashbookEntry(
+        //     accType: AccType::SALE,
+        //     voucher: $voucher,
+        //     entryType: 'credit',
+        // );
 
     }
 
@@ -423,6 +424,19 @@ class PaymentService
         // );
         // milon bhai------------------------
 
+
+        //general ledger entry (acc_type:ACC_HEAD) credit side
+        // milon bhai------------------------
+        // $this->ledgerEntry(
+        //     ledgerType: LedgerType::GENERAL,
+        //     accType: AccType::ACC_HEAD,
+        //     voucher: $voucher,
+        //     entryType: "credit",
+        //     customAccHeadId:  $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)
+        // );
+        // milon bhai------------------------
+
+
         //sale ledger entry (acc_type:sale) debit side
         $this->ledgerEntry(
             ledgerType: LedgerType::SALE,
@@ -431,23 +445,14 @@ class PaymentService
             entryType: "debit"
         );
 
-
-        //general ledger entry (acc_type:ACC_HEAD) credit side
-        $this->ledgerEntry(
-            ledgerType: LedgerType::GENERAL,
-            accType: AccType::ACC_HEAD,
-            voucher: $voucher,
-            entryType: "credit",
-            customAccHeadId:  $this->getHeadIdBySlug(self::SALE_ROOM_HEAD_SLUG)
-        );
-
-        //general ledger entry (acc_type:ACC_HEAD) debit side
+        // general ledger entry (acc_type:ACC_HEAD) debit side
         $this->ledgerEntry(
             ledgerType: LedgerType::GENERAL,
             accType: AccType::ACC_HEAD,
             voucher: $voucher,
             entryType: "debit",
         );
+        
     }
 
     public function getPaymentSummary($saleId)
@@ -642,4 +647,12 @@ class PaymentService
             'credit'            => $entryType === 'credit' ? (float) $amount : 0.00,
         ]);
     }
+
+    // cancelation adjustment entry 
+        // sale  ledger
+            // 1 entry (ACC_HEAD:Room Sale) credit side 
+        // general ledger
+            // 1 entry (ACC_HEAD:Room Sale) credit side
+       
+        
 }
