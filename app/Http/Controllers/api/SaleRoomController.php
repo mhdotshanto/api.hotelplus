@@ -141,10 +141,14 @@ class SaleRoomController extends Controller
         }
     }
 
-    public function createSession($userId) {
+    public function createSession($userId, $saleId = null) {
         $timestamp = Carbon::now()->valueOf();
         $sessionId = (int) ($timestamp . $userId);
-        $room_temp = RoomTemp::create(['id' => $sessionId, 'user_id' => $userId]);
+        $payload = ['id' => $sessionId, 'user_id' => $userId];
+        if ($saleId) {
+            $payload['sale_id'] = $saleId;
+        }
+        $room_temp = RoomTemp::create($payload);
         return $room_temp->id;
     }
 
@@ -186,7 +190,7 @@ class SaleRoomController extends Controller
                 }
             }
 
-            $newSessionId = $this->createSession($user->id);
+            $newSessionId = $this->createSession($user->id, $saleId);
             return response()->json([
                 'session_id' => (string) $newSessionId,
                 'is_new' => true,
