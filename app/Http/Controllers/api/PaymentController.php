@@ -264,10 +264,8 @@ class PaymentController extends Controller
                 $paymentService->cancelReservationLedgerEntries($voucher);
             }
 
-            $paymentService->adjustSaleLedgerEntry(
-                saleId: $saleRoom->id,
-                amount: $saleRoom->price_net,
-                entryType: 'credit',
+            $paymentService->adjustLedgerForCancelReservation(
+                sale: $saleRoom,
                 note: 'Cancellation Adjustment'
             );
 
@@ -344,11 +342,8 @@ class PaymentController extends Controller
 
             }
 
-            // $paymentService->adjustSaleLedgerEntriesForSale();
-            $paymentService->adjustSaleLedgerEntry(
-                saleId: $saleRoom->id,
-                amount: $saleRoom->price_net,
-                entryType: 'credit',
+            $paymentService->adjustLedgerForCancelReservation(
+                sale: $saleRoom,
                 note: 'Cancellation Adjustment'
             );
 

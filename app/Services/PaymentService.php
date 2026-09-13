@@ -611,19 +611,26 @@ class PaymentService
     }
 
     /**
-     * Insert a direct sale ledger adjustment entry without a voucher.
+     * Insert a direct ledger adjustment entry without a voucher.
+     * Can be used for adjustment entries in sale, general, bank, or party ledgers.
      */
-    public function adjustSaleLedgerEntry(
+    public function adjustLedgerEntry(
         int $saleId,
         float|string $amount,
         string $entryType = 'credit',
         ?string $note = null,
         ?string $headSlug = self::SALE_ROOM_HEAD_SLUG,
         ?string $referenceNumber = null,
+        LedgerType $ledgerType = LedgerType::SALE,
+        AccType $accType = AccType::SALE,
+        int $bankId = 0,
+        int $partyId = 0,
     ): AccLedger {
         if (!in_array($entryType, ['debit', 'credit'], true)) throw new \InvalidArgumentException("Invalid entry type: {$entryType}");
 
-        $accHeadId = $this->getHeadIdBySlug($headSlug ?? self::SALE_ROOM_HEAD_SLUG);
+        $accHeadId = ($accType === AccType::BANK || $accType === AccType::PARTY)
+            ? 0
+            : $this->getHeadIdBySlug($headSlug ?? self::SALE_ROOM_HEAD_SLUG);
 
         $accNoteId = 0;
         if (!empty($note)) {
@@ -635,12 +642,12 @@ class PaymentService
             'voucher_id'        => 0,
             'sale_room_id'      => $saleId,
             'acc_head_id'       => $accHeadId,
-            'bank_id'           => 0,
-            'party_id'          => 0,
+            'bank_id'           => $bankId,
+            'party_id'          => $partyId,
             'note_id'           => $accNoteId,
             'date'              => Carbon::now(),
-            'type'              => LedgerType::SALE->value,
-            'acc_type'          => AccType::SALE->value,
+            'type'              => $ledgerType->value,
+            'acc_type'          => $accType->value,
             'is_cash'           => true,
             'reference_number'  => $referenceNumber,
             'debit'             => $entryType === 'debit' ? (float) $amount : 0.00,
@@ -648,11 +655,57 @@ class PaymentService
         ]);
     }
 
-    // cancelation adjustment entry 
-        // sale  ledger
-            // 1 entry (ACC_HEAD:Room Sale) credit side 
-        // general ledger
-            // 1 entry (ACC_HEAD:Room Sale) credit side
-       
-        
+    /**
+     * Cancellation adjustment entry.
+     * Inserts credit adjustment entries in both:
+     * 1. Sale ledger (type: 'sale', acc_type: 'sale', ACC_HEAD: Room Sale) - credit side
+     * 2. General ledger (type: 'general', acc_type: 'acc_head', ACC_HEAD: Room Sale) - credit side
+     *
+     * @param int|SaleRoom $sale
+     * @param float|string|null $amount
+     * @param string|null $note
+     * @param string|null $referenceNumber
+     * @return array<string, AccLedger>
+     */
+    public function adjustLedgerForCancelReservation(
+        int|SaleRoom $sale,
+        float|string|null $amount = null,
+        ?string $note = 'Cancellation Adjustment',
+        ?string $referenceNumber = null,
+    ): array {
+        $saleId = $sale instanceof SaleRoom ? $sale->id : $sale;
+
+        if ($amount === null) {
+            $amount = $sale instanceof SaleRoom
+                ? $sale->price_net
+                : (SaleRoom::where('id', $saleId)->value('price_net') ?? 0.00);
+        }
+
+        // 1. Sale ledger entry (ACC_HEAD: Room Sale) credit side
+        $saleLedger = $this->adjustLedgerEntry(
+            saleId: $saleId,
+            amount: $amount,
+            entryType: 'credit',
+            note: $note,
+            referenceNumber: $referenceNumber,
+            ledgerType: LedgerType::SALE,
+            accType: AccType::SALE,
+        );
+
+        // 2. General ledger entry (ACC_HEAD: Room Sale) credit side
+        $generalLedger = $this->adjustLedgerEntry(
+            saleId: $saleId,
+            amount: $amount,
+            entryType: 'credit',
+            note: $note,
+            referenceNumber: $referenceNumber,
+            ledgerType: LedgerType::GENERAL,
+            accType: AccType::ACC_HEAD,
+        );
+
+        return [
+            'sale_ledger'    => $saleLedger,
+            'general_ledger' => $generalLedger,
+        ];
+    }
 }
