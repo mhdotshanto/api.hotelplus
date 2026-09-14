@@ -5,7 +5,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'https://cv.hotelplus.xyz', 'http://localhost:4173'],
+    'allowed_origins' => ['http://localhost:5173', 'https://cv.hotelplus.xyz', 'http://cv.hotelplus.xyz', 'http://localhost:4173'],
 
     'allowed_origins_patterns' => [],
 
