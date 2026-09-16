@@ -168,6 +168,18 @@ trait SaleRoomTrait
         }
     }
 
+    /**
+     * Delete all room allocations for a given sale to release rooms back to inventory.
+     *
+     * @param int|SaleRoom $sale
+     * @return int Number of deleted allocation records
+     */
+    public function deleteSaleRoomAllocations(int|SaleRoom $sale): int
+    {
+        $saleId = $sale instanceof SaleRoom ? $sale->id : $sale;
+        return SaleRoomAllocation::where('room_sale_id', $saleId)->delete();
+    }
+
     public function createSaleCategories(
         $groupedData,
         $byCategoryDiscount,

@@ -269,6 +269,9 @@ class PaymentController extends Controller
                 note: 'Cancellation Adjustment'
             );
 
+            // Release room allocations back to inventory
+            $this->deleteSaleRoomAllocations($saleRoom);
+
             $saleRoom->status = "cancelled";
             $saleRoom->save();
 
@@ -346,6 +349,9 @@ class PaymentController extends Controller
                 sale: $saleRoom,
                 note: 'Cancellation Adjustment'
             );
+
+            // Release room allocations back to inventory
+            $this->deleteSaleRoomAllocations($saleRoom);
 
             if (!empty($validated['notes'])) {
                 $saleRoom->note()->updateOrCreate(['sale_id' => $saleRoom->id], ['note' => $validated['notes']]);
