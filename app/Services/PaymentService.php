@@ -673,17 +673,14 @@ class PaymentService
         ?string $note = 'Cancellation Adjustment',
         ?string $referenceNumber = null,
     ): array {
-        $saleId = $sale instanceof SaleRoom ? $sale->id : $sale;
+        $saleRecord = $sale instanceof SaleRoom ? $sale : SaleRoom::find($sale);
+        if (!$saleRecord || !$saleRecord->is_confirmed) return [];
 
-        if ($amount === null) {
-            $amount = $sale instanceof SaleRoom
-                ? $sale->price_net
-                : (SaleRoom::where('id', $saleId)->value('price_net') ?? 0.00);
-        }
+        if ($amount === null) $amount = $saleRecord->price_net ?? 0.00;
 
         // 1. Sale ledger entry (ACC_HEAD: Room Sale) credit side
         $saleLedger = $this->adjustLedgerEntry(
-            saleId: $saleId,
+            saleId: $saleRecord->id,
             amount: $amount,
             entryType: 'credit',
             note: $note,
