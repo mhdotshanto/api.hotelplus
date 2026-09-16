@@ -1805,11 +1805,19 @@ class SaleRoomController extends Controller
 
     public function getLedgerListBySaleId(Request $request)
     {
-        $query =  AccLedger::with('ledgerNote','voucher')->where('sale_room_id', $request->get('sale_id'))
+        $query = AccLedger::with([
+            'head',
+            'bank',
+            'party',
+            'ledgerNote',
+            'voucher.head',
+            'voucher.bank',
+            'voucher.party',
+        ])
+            ->where('sale_room_id', $request->get('sale_id'))
             ->where('type', 'sale')
-            ->with('head')
             ->get();
-            //dd($query);
+
         return response()->json(
             $query
         );

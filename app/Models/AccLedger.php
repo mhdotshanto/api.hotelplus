@@ -19,6 +19,16 @@ class AccLedger extends Model
         return $this->belongsTo(AccHead::class, 'acc_head_id', 'id');
     }
 
+    public function bank(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(AccBank::class, 'bank_id', 'id');
+    }
+
+    public function party(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(AccParty::class, 'party_id', 'id');
+    }
+
     public function ledgerNote(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(AccNote::class, 'note_id', 'id');
