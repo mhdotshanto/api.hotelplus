@@ -14,6 +14,10 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
+
         $query = User::query();
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -31,6 +35,10 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:30',
             'user_name' => 'required|string|max:30|unique:users,user_name',
@@ -64,6 +72,10 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
+
         $user = User::findOrFail($id);
 
         $validated = $request->validate([
@@ -85,13 +97,23 @@ class UserController extends Controller
     /**
      * Remove the specified user.
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        //
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
+
+        $user = User::findOrFail($id);
+        $user->delete();
+        return response()->json(['success' => true], 200);
     }
 
     public function updateUsersPassword(Request $request, User $user)
     {
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
+
         $validated = $request->validate(['password' => 'required|string|min:8|confirmed']);
         $user->update(['password' => Hash::make($validated['password'])]);
         return response()->json(['success' => true, 'message' => 'Password updated successfully'], 200);
