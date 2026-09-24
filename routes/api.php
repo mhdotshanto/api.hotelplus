@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/update-password', [AuthController::class, 'updatePassword']);
     Route::get('/user', [AuthController::class, 'me']);
+    Route::get('/profile', [AuthController::class, 'me']);
+    Route::get('/me', [AuthController::class, 'me']);
 
     //Misc api call
     Route::prefix('misc')->controller(\App\Http\Controllers\api\MiscController::class)->group(function () {
